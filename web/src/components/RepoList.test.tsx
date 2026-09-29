@@ -124,6 +124,35 @@ describe("RepoList", () => {
     );
   });
 
+  test("重新索引按钮：同一个 target 再提交一次，并把 SSE 切到新任务", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") return jsonRes({ repoId: "repo-alpha", jobId: "job-77" }, 201);
+      return jsonRes({ repos: REPOS });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderList();
+    fireEvent.click(await screen.findByTestId("repo-reindex-repo-alpha"));
+
+    await waitFor(() => expect(useUi.getState().jobId).toBe("job-77"));
+    expect(useUi.getState().repoId).toBe("repo-alpha");
+    expect(useUi.getState().jobProgress).toBeNull();
+    const post = fetchMock.mock.calls.find((c) => c[1]?.method === "POST");
+    expect(post?.[0]).toBe("/api/repos");
+    expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
+      target: REPOS[0].target,
+      ref: null,
+    });
+  });
+
+  test("正在索引的仓库不能重复提交：重新索引按钮禁用", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, _init?: RequestInit) => jsonRes({ repos: REPOS })));
+
+    renderList();
+    const button = (await screen.findByTestId("repo-reindex-repo-beta")) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
   test("repoName / topLanguages 边界处理", () => {
     expect(repoName(REPOS[0])).toBe("alpha");
     expect(repoName({ ...REPOS[1], target: "" })).toBe("beta");

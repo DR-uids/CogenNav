@@ -69,6 +69,9 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
         root = index_root(settings, target)
         if not root.is_dir():
             raise FileNotFoundError(f"索引根目录不存在: {root}")
+        # 快照路径可能因为 COGEN_HOME / 工作区被搬动而变过：每次索引都以本次算出的
+        # root 为准回写 meta，避免库里留着旧绝对路径导致读接口永久 410。
+        meta.root_path = str(root)
 
         progress.update(phase="walk", message=f"正在遍历 {root}", force=True)
 

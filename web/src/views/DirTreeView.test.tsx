@@ -72,14 +72,25 @@ type Route = {
   /** 按 path 参数返回子树；返回 undefined 表示 404。 */
   tree?: (path: string) => TreeNode | undefined;
   treeError?: { status: number; detail: string };
+  /** GET /api/repos 的返回（决定仓库是否还在索引，见 DirTreeView 的门控）。 */
+  repos?: unknown[];
+  /** POST /api/repos 的返回（重新索引按钮）。 */
+  createResult?: { repoId: string; jobId: string };
 };
 
 function installFetch(route: Route = {}) {
   const calls: string[] = [];
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     calls.push(url);
     if (url === "/api/health") return jsonRes(HEALTH);
+
+    if (url === "/api/repos") {
+      if (init?.method === "POST") {
+        return jsonRes(route.createResult ?? { repoId: REPO, jobId: "job-reindex" }, 201);
+      }
+      return jsonRes({ repos: route.repos ?? [] });
+    }
 
     if (url.startsWith(`/api/repos/${REPO}/tree`)) {
       if (route.treeError) return jsonRes({ detail: route.treeError.detail }, route.treeError.status);
@@ -89,7 +100,7 @@ function installFetch(route: Route = {}) {
       return jsonRes({ path, node, totalLoc: node.loc, totalFiles: node.files });
     }
 
-    return jsonRes({ repos: [] });
+    return jsonRes({ repos: route.repos ?? [] });
   });
   vi.stubGlobal("fetch", fetchMock);
   return { fetchMock, calls };
@@ -316,6 +327,47 @@ describe("DirTreeView Treemap", () => {
     expect(screen.getByTestId("treemap-selected-dir").textContent).toContain("src/api");
     // 祖先目录 src 被自动展开
     expect(row("src").getAttribute("data-expanded")).toBe("true");
+  });
+
+  test("仓库还在索引时不请求目录树：只给等待提示，不缓存失败态", async () => {
+    const { calls } = installFetch({
+      repos: [{ repoId: REPO, state: "running", target: "owner/repo" }],
+    });
+    renderView();
+
+    await waitFor(() => expect(screen.getByTestId("dir-tree-indexing")).toBeTruthy());
+    expect(screen.getByTestId("dir-tree-indexing").textContent).toContain("索引完成后");
+    // 关键：一次 /tree 都不该发（此前会拿到 409/410 并被无限期缓存）
+    expect(calls.some((url) => url.includes("/tree"))).toBe(false);
+    expect(screen.queryByTestId("dir-tree-error")).toBeNull();
+  });
+
+  test("列表里状态是 done 时照常读目录树", async () => {
+    installFetch({ repos: [{ repoId: REPO, state: "done", target: "owner/repo" }] });
+    renderView();
+
+    await waitFor(() => expect(screen.getAllByTestId("dir-row")).toHaveLength(3));
+    expect(screen.queryByTestId("dir-tree-indexing")).toBeNull();
+  });
+
+  test("真 410（快照被清理）时给一键重新索引，并把任务交给 SSE 跟踪", async () => {
+    const { fetchMock } = installFetch({
+      treeError: { status: 410, detail: "索引快照已不存在，请重新索引" },
+      repos: [{ repoId: REPO, state: "done", target: "https://github.com/owner/repo", ref: null }],
+    });
+    renderView();
+
+    const error = await screen.findByTestId("dir-tree-error");
+    expect(error.textContent).toContain("索引快照已不存在");
+
+    fireEvent.click(screen.getByTestId("dir-tree-reindex"));
+
+    await waitFor(() => expect(useUi.getState().jobId).toBe("job-reindex"));
+    const post = fetchMock.mock.calls.find((c) => c[1]?.method === "POST");
+    expect(post?.[0]).toBe("/api/repos");
+    expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
+      target: "https://github.com/owner/repo",
+    });
   });
 });
 

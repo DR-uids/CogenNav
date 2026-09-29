@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { deleteRepo, listRepos, type RepoSummary } from "../api/client";
+import { useReindexRepo } from "../lib/reindex";
 import { useUi } from "../stores/ui";
 import { stateLabel } from "./JobProgress";
 
@@ -65,6 +66,7 @@ export function RepoList() {
       void queryClient.invalidateQueries({ queryKey: ["repos"] });
     },
   });
+  const reindex = useReindexRepo();
 
   // 后端字段缺失时按空列表处理，避免整块 UI 崩掉。
   const repos = data ?? [];
@@ -104,6 +106,11 @@ export function RepoList() {
       {removal.error && (
         <p data-testid="repo-delete-error" className="mb-2 text-[11px] break-all text-rose-300">
           {removal.error instanceof Error ? removal.error.message : "删除失败"}
+        </p>
+      )}
+      {reindex.error && (
+        <p data-testid="repo-reindex-error" className="mb-2 text-[11px] break-all text-rose-300">
+          {reindex.error instanceof Error ? reindex.error.message : "重新索引失败"}
         </p>
       )}
       <ul className="space-y-1.5">
@@ -147,6 +154,17 @@ export function RepoList() {
                     ))}
                   </span>
                 )}
+              </button>
+              <button
+                type="button"
+                data-testid={`repo-reindex-${repo.repoId}`}
+                aria-label={`重新索引仓库 ${name}`}
+                title="用同一个地址再跑一次索引（快照被清理过时会重新克隆）"
+                disabled={reindex.isPending || repo.state === "queued" || repo.state === "running"}
+                onClick={() => reindex.mutate({ target: repo.target, ref: repo.ref })}
+                className="shrink-0 border-l border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                重新索引
               </button>
               <button
                 type="button"

@@ -67,8 +67,10 @@ export default function App() {
         message,
         ...(prev?.file ? { file: prev.file } : {}),
       });
-      // 终态后仓库摘要（fileCount/loc/languages）才有值，刷新列表。
-      void queryClient.invalidateQueries({ queryKey: ["repos"] });
+      // 终态后索引产物才齐：仓库摘要（fileCount/loc/languages）与该仓库相关的查询
+      // 都可能缓存了"半截/失败"结果——提交后新仓库会被立刻选中，而那一刻快照和
+      // files 表都还没就绪（目录树会拿到 409 或空树）。统一让活动中的查询重读一次。
+      void queryClient.invalidateQueries();
     };
 
     const subscription = subscribeJobEvents(jobId, {

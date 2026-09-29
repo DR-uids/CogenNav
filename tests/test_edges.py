@@ -9,6 +9,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from cogen.api import deps
+
 
 def _build_edge_repo(root: Path) -> Path:
     repo = root / "edge-repo"
@@ -212,3 +214,49 @@ def test_repo_root_removed_after_index(
         client.get(f"/api/repos/{created['repoId']}/file", params={"path": "a.py"}).status_code
         == 410
     )
+
+
+def test_repo_root_pending_while_indexing(
+    client: TestClient, wait_job, tmp_path: Path, cogen_home
+) -> None:
+    """快照"还没建出来"（索引进行中）→ 409 稍后重试；任务结束后同一请求才是 410。
+
+    对应真实时序：POST /api/repos 先把 meta（含 rootPath）写库并返回，git clone 是在
+    后台线程里才把快照目录建出来的；这段窗口里前端若已经选中了这个新仓库，读树不该
+    被告知"快照已不存在，请重新索引"。
+    """
+    repo = tmp_path / "pending-repo"
+    repo.mkdir()
+    (repo / "a.py").write_text("x = 1\n")
+    created = client.post("/api/repos", json={"target": str(repo)}).json()
+    wait_job(client, created["jobId"])
+    shutil.rmtree(repo)
+    rid = created["repoId"]
+
+    # 模拟"克隆/遍历进行中"：任务库里留一条 queued 任务，JobManager 就视其为 active。
+    job_id = "job-pending-snapshot"
+    manager = deps.get_manager()
+    manager.store.create(job_id, rid, phase="clone")
+
+    try:
+        pending = client.get(f"/api/repos/{rid}/tree")
+        assert pending.status_code == 409, pending.text
+        assert "索引进行中" in pending.json()["detail"]
+        # 需要磁盘的接口同样给 409，而不是骗用户去重新索引
+        assert client.get(f"/api/repos/{rid}/file", params={"path": "a.py"}).status_code == 409
+    finally:
+        manager.store.update(job_id, state="done")
+
+    gone = client.get(f"/api/repos/{rid}/tree")
+    assert gone.status_code == 410, gone.text
+
+
+def test_api_responses_are_not_cacheable(client: TestClient, cogen_home) -> None:
+    """404/410 这类 4xx 默认可被浏览器缓存：一次瞬时失败会被"缓存住刷新也没用"。
+
+    所以 API 响应必须显式 no-store，成功与失败都要。
+    """
+    assert client.get("/api/repos").headers.get("cache-control") == "no-store"
+    missing = client.get("/api/repos/does-not-exist/tree")
+    assert missing.status_code == 404, missing.text
+    assert missing.headers.get("cache-control") == "no-store"

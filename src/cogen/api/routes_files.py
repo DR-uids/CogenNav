@@ -25,7 +25,7 @@ from ..parse.parser import (
     resolve_language,
 )
 from ..security import PathEscapeError, UnsafePathError, check_repo_relative_path, ensure_within
-from .deps import check_repo_id
+from .deps import check_repo_id, get_manager
 
 router = APIRouter(prefix="/api/repos/{repo_id}", tags=["files"])
 
@@ -58,6 +58,12 @@ def repo_context(repo_id: str) -> Iterator[tuple[Store, Path, Settings]]:
             raise HTTPException(status_code=404, detail="仓库不存在")
         root = Path(meta.root_path)
         if not root.is_dir():
+            # 「快照还没建出来」（克隆/遍历还在跑）与「快照被清理掉了」是两回事：
+            # 前者是暂时的，前端只要等任务终态再读即可；后者才需要用户重新索引。
+            if get_manager().active_for_repo(rid) is not None:
+                raise HTTPException(
+                    status_code=409, detail="索引进行中，快照尚未就绪；请等索引完成后重试"
+                )
             raise HTTPException(status_code=410, detail="索引快照已不存在，请重新索引")
         yield store, root, settings
     finally:

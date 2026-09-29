@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -50,6 +50,21 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def no_store_api(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """API 一律禁缓存。
+
+        404/405/410/414 这类 4xx 按 RFC 9110 是**默认可缓存**的：一次瞬时失败
+        （比如刚提交索引、快照还没就绪）会被浏览器缓存住，之后"刷新也还是它"，
+        看起来像后端一直没修好。SSE 也不该被缓存，所以统一打 no-store。
+        """
+        response = await call_next(request)
+        if request.url.path.startswith("/api/"):
+            response.headers.setdefault("Cache-Control", "no-store")
+        return response
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:

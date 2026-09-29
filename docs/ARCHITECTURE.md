@@ -94,6 +94,11 @@ tests/                 单测 + 接口测试 + fixtures/graph_repo（多语言�
 | POST | `/api/repos/{id}/ask` | SSE 问答（tool / tool_result / delta / done / error） |
 | GET/POST | `/api/repos/{id}/ai/status`、`/communities/name`、`/summary` | AI 状态 / 社区命名 / 架构摘要 |
 
+磁盘快照相关的两档约定（`repo_context`，见 `api/routes_files.py`）：`meta.rootPath` 不存在
+且该仓库的任务还在 `queued/running` → **409**「索引进行中，快照尚未就绪」（前端等终态再读，
+`App` 在任务终态统一失效活动查询）；任务已结束而快照仍不存在 → **410**「索引快照已不存在，
+请重新索引」（只有这种情况才需要重新索引，例如手工清理了 `.cogen/repos`）。
+
 ## 5. 安全基线（实现位置）
 
 | 措施 | 位置 |

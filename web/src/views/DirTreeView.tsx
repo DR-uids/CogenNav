@@ -2,11 +2,14 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { TreeNode } from "../api/client";
+import { ApiError, listRepos } from "../api/client";
 import { TREE_DEPTH_DEFAULT, treeQueryOptions } from "../api/graph";
+import { stateLabel } from "../components/JobProgress";
 import { LanguageBar } from "../components/tree/LanguageBar";
 import { DirTree } from "../components/tree/DirTree";
 import { Treemap } from "../components/tree/Treemap";
 import { readDeepLinkParam, writeDeepLink } from "../lib/deepLink";
+import { useReindexRepo } from "../lib/reindex";
 import { layoutTreemap } from "../lib/treemap";
 import {
   ancestorDirPaths,
@@ -39,7 +42,22 @@ export function DirTreeView() {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set<string>([""]));
   const [subPaths, setSubPaths] = useState<readonly string[]>([]);
 
-  const enabled = Boolean(repoId);
+  // 目录树读的是「索引产物 + 磁盘快照」：仓库还在排队/索引时快照可能尚未建出来、
+  // files 表也还没写完，此时读树只会拿到 409/空数据。所以先看仓库列表里的状态，
+  // 未就绪（或者列表还没回来、状态未知）就不发请求，等任务终态再读。
+  const reposQuery = useQuery({
+    queryKey: ["repos"],
+    queryFn: ({ signal }: { signal: AbortSignal }) => listRepos(signal),
+  });
+  const repoSummary = reposQuery.data?.find((repo) => repo.repoId === repoId) ?? null;
+  const repoState = repoSummary?.state ?? null;
+  const indexing = repoState === "queued" || repoState === "running";
+  const stateUnknown = Boolean(repoId) && reposQuery.isPending;
+
+  // 410「快照已不存在」时的唯一解药：用同一个 target 再索引一次（增量；快照没了会重克隆）。
+  const reindex = useReindexRepo();
+
+  const enabled = Boolean(repoId) && !indexing && !stateUnknown;
   const rootQuery = useQuery({
     ...treeQueryOptions(repoId ?? "", "", TREE_DEPTH_DEFAULT),
     enabled,
@@ -143,11 +161,16 @@ export function DirTreeView() {
   };
 
   const loading = enabled && rootQuery.isLoading;
-  const failed = enabled && (rootQuery.isError || (!rootQuery.isLoading && !root));
+  // 后端 409 = 索引进行中、快照尚未就绪（410 才是快照真被清理，需要重新索引）。
+  const notReady = rootQuery.error instanceof ApiError && rootQuery.error.status === 409;
+  const failed =
+    enabled && !notReady && (rootQuery.isError || (!rootQuery.isLoading && !root));
   const errorMessage =
     rootQuery.error instanceof Error
       ? rootQuery.error.message
       : "后端未返回目录树数据（node 缺失）。";
+  // 等索引/等列表的提示只在还没有可展示的树时出现：重新索引时保留上一次已加载的树。
+  const waiting = Boolean(repoId) && !root && (indexing || notReady);
 
   return (
     <div data-testid="view-tree" className="flex h-full min-h-0 flex-col bg-zinc-950">
@@ -183,6 +206,16 @@ export function DirTreeView() {
             </p>
           )}
 
+          {waiting && (
+            <p
+              data-testid="dir-tree-indexing"
+              className="m-3 rounded border border-sky-900/60 bg-sky-950/30 p-2 text-[11px] leading-relaxed text-sky-300"
+            >
+              该仓库{stateLabel(repoState ?? "running")}
+              ，目录树要等索引完成后才能读；完成后会自动加载。
+            </p>
+          )}
+
           {loading && (
             <p data-testid="dir-tree-loading" className="m-3 text-[11px] text-zinc-500">
               正在加载目录树…
@@ -190,15 +223,32 @@ export function DirTreeView() {
           )}
 
           {failed && (
-            <p
-              data-testid="dir-tree-error"
-              className="m-3 rounded border border-rose-900/60 bg-rose-950/30 p-2 text-[11px] break-all text-rose-300"
-            >
-              目录树加载失败：{errorMessage}
-            </p>
+            <div className="m-3 rounded border border-rose-900/60 bg-rose-950/30 p-2">
+              <p data-testid="dir-tree-error" className="text-[11px] break-all text-rose-300">
+                目录树加载失败：{errorMessage}
+              </p>
+              {repoSummary && (
+                <button
+                  type="button"
+                  data-testid="dir-tree-reindex"
+                  disabled={reindex.isPending}
+                  onClick={() =>
+                    reindex.mutate({ target: repoSummary.target, ref: repoSummary.ref })
+                  }
+                  className="mt-2 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[11px] text-zinc-100 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reindex.isPending ? "提交中…" : "重新索引"}
+                </button>
+              )}
+              {reindex.error && (
+                <p data-testid="dir-tree-reindex-error" className="mt-1.5 text-[11px] break-all text-rose-300">
+                  {reindex.error instanceof Error ? reindex.error.message : "重新索引失败"}
+                </p>
+              )}
+            </div>
           )}
 
-          {enabled && !loading && !failed && rows.length > 0 && (
+          {!loading && !failed && !waiting && rows.length > 0 && (
             <DirTree
               rows={rows}
               expanded={expanded}

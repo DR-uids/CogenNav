@@ -100,7 +100,10 @@ describe("App 与索引任务 SSE 的接线", () => {
     expect(screen.getByTestId("sidebar-phase").textContent).toContain("遍历文件");
 
     const reposCalls = () => fetchMock.mock.calls.filter((c) => c[0] === "/api/repos").length;
+    const treeCalls = () =>
+      fetchMock.mock.calls.filter((c) => String(c[0]).includes("/tree")).length;
     const before = reposCalls();
+    const treeBefore = treeCalls();
 
     act(() => {
       created[0].emit("done", { phase: "done", state: "done" });
@@ -110,6 +113,8 @@ describe("App 与索引任务 SSE 的接线", () => {
     expect(screen.getByTestId("job-progress-phase").textContent).toBe("完成");
     expect(screen.getByTestId("job-progress-percent").textContent).toBe("100%");
     await waitFor(() => expect(reposCalls()).toBeGreaterThan(before));
+    // 索引前读到的目录树可能是一次失败/半截结果：终态必须让它重读一次。
+    await waitFor(() => expect(treeCalls()).toBeGreaterThan(treeBefore));
 
     // 切换视图不应重建订阅（依赖只有 jobId）
     fireEvent.click(screen.getByRole("tab", { name: /CST 语法树/ }));
