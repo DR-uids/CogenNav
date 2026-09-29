@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 
 import { subscribeJobEvents } from "./api/events";
 import { JobProgress } from "./components/JobProgress";
-import { Inspector } from "./components/Inspector";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { ViewTabs } from "./components/ViewTabs";
@@ -94,7 +93,6 @@ export default function App() {
             {renderView(activeView)}
           </section>
         </main>
-        <Inspector />
       </div>
     </div>
   );
