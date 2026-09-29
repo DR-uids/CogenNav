@@ -6,6 +6,8 @@
  *  - 未知语言用字符串哈希落到固定调色板上（同一语言永远同一格）。
  */
 
+import { t } from "../i18n";
+
 /** 常见语言的固定色（深色底上可辨）。 */
 const LANGUAGE_COLORS: Record<string, string> = {
   python: "#3b82f6",
@@ -86,5 +88,5 @@ export function languageColor(language: string | null | undefined): string {
 
 /** 语言展示名：空语言统一显示成「其它」。 */
 export function languageLabel(language: string | null | undefined): string {
-  return language && language.trim() ? language : "其它";
+  return language && language.trim() ? language : t("language.other");
 }

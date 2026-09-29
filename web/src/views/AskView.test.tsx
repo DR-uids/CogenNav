@@ -421,7 +421,7 @@ describe("AskView 对话", () => {
     await push(stream, frame("done", { type: "done", answer: "答案是 …", citations: [] }));
 
     const toggle = screen.getByTestId("ask-tools-toggle");
-    expect(toggle.textContent).toContain("2 次工具调用");
+    expect(toggle.textContent).toContain("2 tool calls");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByTestId("ask-tool-list")).toBeNull();
 
@@ -448,7 +448,7 @@ describe("AskView 对话", () => {
 
     const warning = await screen.findByTestId("ask-llm-warning");
     expect(warning.textContent).toContain("COGEN_LLM_API_KEY");
-    expect(warning.textContent).toContain("其余功能不受影响");
+    expect(warning.textContent).toContain("are unaffected");
 
     expect((screen.getByTestId("ask-input") as HTMLTextAreaElement).disabled).toBe(true);
     expect((screen.getByTestId("ask-send") as HTMLButtonElement).disabled).toBe(true);
@@ -466,7 +466,7 @@ describe("AskView 对话", () => {
 
     fireEvent.click(screen.getAllByTestId("ask-quick-item")[1]);
     await waitFor(() => expect(callsOf(calls, "/ask")).toHaveLength(1));
-    expect(JSON.parse(String(callsOf(calls, "/ask")[0].init?.body)).question).toBe("谁调用了 Engine.run？");
+    expect(JSON.parse(String(callsOf(calls, "/ask")[0].init?.body)).question).toBe("Who calls Engine.run?");
   });
 });
 
@@ -487,8 +487,8 @@ describe("AskView 社区命名与架构摘要", () => {
 
     // 结果落地：updated / namedBy 都展示出来
     const result = await screen.findByTestId("ask-naming-result");
-    expect(result.textContent).toContain("更新 2 个社区");
-    expect(result.textContent).toContain("由启发式命名");
+    expect(result.textContent).toContain("Updated 2 communities");
+    expect(result.textContent).toContain("named heuristically");
     const items = screen.getAllByTestId("ask-naming-item");
     expect(items).toHaveLength(2);
     expect(within(items[0]).getByTestId("ask-naming-by").textContent).toBe("heuristic");
@@ -519,7 +519,7 @@ describe("AskView 社区命名与架构摘要", () => {
     await waitFor(() => expect(callsOf(calls, "/summary")).toHaveLength(1));
 
     const result = await screen.findByTestId("ask-summary-result");
-    expect(within(result).getByTestId("ask-summary-by").textContent).toContain("启发式");
+    expect(within(result).getByTestId("ask-summary-by").textContent).toContain("heuristic");
     const lines = within(result).getAllByTestId("ask-summary-line");
     expect(lines.map((line) => line.textContent)).toEqual([
       "仓库：demo",

@@ -303,13 +303,13 @@ describe("CstView 文件列表", () => {
     renderView();
 
     await waitFor(() => expect(screen.getAllByTestId("cst-file-item")).toHaveLength(3));
-    expect(screen.getByTestId("cst-file-total").textContent).toBe("共 3 个文件");
+    expect(screen.getByTestId("cst-file-total").textContent).toBe("3 files in total");
     expect(fileItem("src/a.py").textContent).toContain("src/a.py");
     expect(fileItem("src/a.py").textContent).toContain("python");
-    expect(fileItem("src/a.py").textContent).toContain("8 行");
+    expect(fileItem("src/a.py").textContent).toContain("8 lines");
     expect(
       within(fileItem("Makefile")).getByTestId("cst-file-parse-error").textContent,
-    ).toContain("解析失败");
+    ).toContain("parse failed");
   });
 
   test("搜索防抖：连续输入只发一次带 q 的请求，并按结果过滤", async () => {
@@ -357,7 +357,7 @@ describe("CstView 语法树", () => {
 
     expect(nodeRow("").textContent).toContain("module");
     expect(nodeRow("").textContent).toContain("1:1–3:1");
-    expect(screen.getByTestId("cst-total-nodes").textContent).toBe("共 42 个节点");
+    expect(screen.getByTestId("cst-total-nodes").textContent).toBe("42 nodes");
     expect(cstCalls(calls)).toEqual([`/api/repos/${REPO}/cst?path=src%2Fa.py&nodePath=&depth=4`]);
   });
 
@@ -448,8 +448,8 @@ describe("CstView 语法树", () => {
     renderView();
 
     const notice = await screen.findByTestId("cst-no-grammar");
-    expect(notice.textContent).toContain("该语言没有可用的语法");
-    expect(notice.textContent).toContain("右侧源码仍可正常浏览");
+    expect(notice.textContent).toContain("No grammar available for this language");
+    expect(notice.textContent).toContain("the source on the right is still readable");
     expect(screen.getByTestId("cst-source-highlighted").textContent).toContain("def f():");
   });
 
@@ -470,7 +470,7 @@ describe("CstView 语法树", () => {
     expect(failure.textContent).toContain("节点不存在: 0.1");
     expect(nodeRowOrNull("0.1.0")).toBeNull();
     // 失败后不再显示「加载中…」
-    expect(nodeRow("0.1").textContent).not.toContain("加载中");
+    expect(nodeRow("0.1").textContent).not.toContain("Loading");
 
     const before = cstCalls(calls).filter((url) => url.includes("nodePath=0.1")).length;
     fireEvent.click(screen.getByTestId("cst-subtree-retry"));

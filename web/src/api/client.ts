@@ -1,5 +1,7 @@
 /** 后端 API 客户端：健康检查 + M1 的仓库索引接口。 */
 
+import { acceptLanguage, t } from "../i18n";
+
 export type Health = {
   status: string;
   version: string;
@@ -85,10 +87,20 @@ async function errorMessage(res: Response, url: string, method: string): Promise
   return `${method} ${url} → HTTP ${res.status}`;
 }
 
+/**
+ * 带语言头的 fetch：`Accept-Language` 让后端把错误 detail 也按当前界面语言返回
+ * （否则英文界面里会冒出中文报错）。所有走后端的请求都应该用它。
+ */
+export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  headers.set("Accept-Language", acceptLanguage());
+  return fetch(url, { ...init, headers });
+}
+
 /** 统一的 JSON 请求：非 2xx 一律抛 ApiError，detail 原样带给 UI。 */
 export async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? "GET";
-  const res = await fetch(url, init);
+  const res = await apiFetch(url, init);
   if (!res.ok) throw new ApiError(await errorMessage(res, url, method), res.status);
   return (await res.json()) as T;
 }
@@ -173,7 +185,7 @@ export const FILE_PAGE_SIZE = 300;
 /** 无响应体的请求（如 DELETE 204）。 */
 async function requestVoid(url: string, init?: RequestInit): Promise<void> {
   const method = init?.method ?? "GET";
-  const res = await fetch(url, init);
+  const res = await apiFetch(url, init);
   if (!res.ok) throw new ApiError(await errorMessage(res, url, method), res.status);
 }
 
@@ -679,7 +691,7 @@ export async function getSymbol(
     definition?: unknown;
   }>(`/api/repos/${encodeURIComponent(repoId)}/symbol?${search.toString()}`, { signal });
   if (!raw?.node || typeof raw.node !== "object") {
-    throw new ApiError("后端返回的符号数据不完整（缺少 node）", 502);
+    throw new ApiError(t("api.symbolIncomplete"), 502);
   }
   return {
     node: raw.node as GraphNode,

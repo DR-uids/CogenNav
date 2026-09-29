@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..i18n import t
 from ..security import sanitize_label
 from . import tscompat as ts
 from .tscompat import SourceIndex
@@ -42,11 +43,11 @@ def parse_node_path(node_path: str) -> list[int]:
     if not text:
         return []
     if len(text) > 200:
-        raise CstPathError("nodePath 过长")
+        raise CstPathError(t("parse.nodePathTooLong"))
     indices: list[int] = []
     for part in text.split("."):
         if not part.isdigit():
-            raise CstPathError(f"nodePath 非法: {node_path!r}")
+            raise CstPathError(t("parse.nodePathInvalid", path=repr(node_path)))
         indices.append(int(part))
     return indices
 
@@ -58,7 +59,7 @@ def resolve_node(root: Any, node_path: str) -> list[Any]:
     for index in parse_node_path(node_path):
         nxt = ts.child(current, index)
         if nxt is None:
-            raise CstPathError(f"节点不存在: {node_path}")
+            raise CstPathError(t("parse.nodeMissing", path=node_path))
         chain.append(nxt)
         current = nxt
     return chain

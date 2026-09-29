@@ -395,7 +395,7 @@ describe("GraphView 力导向与过滤", () => {
     renderView();
 
     const banner = await screen.findByTestId("graph-truncated");
-    expect(banner.textContent).toContain("结果已截断");
+    expect(banner.textContent).toContain("Results truncated");
     expect(banner.textContent).toContain("3");
     expect(banner.textContent).toContain("9000");
     expect(screen.getByTestId("graph-large-warning").textContent).toContain("5000");
@@ -430,7 +430,7 @@ describe("GraphView 搜索与 Inspector", () => {
 
     const result = await screen.findByTestId("graph-search-result");
     expect(result.getAttribute("data-id")).toBe("s3");
-    expect(screen.getByTestId("graph-search-total").textContent).toContain("命中 1 个");
+    expect(screen.getByTestId("graph-search-total").textContent).toContain("1 hit");
 
     fireEvent.click(result);
 
@@ -550,7 +550,7 @@ describe("GraphView 三种模式", () => {
     expect(files).toHaveLength(2);
     expect(files[0].getAttribute("data-path")).toBe("src/Session.ts");
     expect(files[0].getAttribute("data-count")).toBe("3");
-    expect(screen.getByTestId("impact-file-count").textContent).toBe("2 个");
+    expect(screen.getByTestId("impact-file-count").textContent).toBe("2 files");
 
     // 点文件 → 去 CST
     fireEvent.click(files[0]);

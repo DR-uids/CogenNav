@@ -21,6 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..config import Settings
+from ..i18n import t
 from ..security import redact_secrets
 from .resolve import Target
 
@@ -114,12 +115,12 @@ def clone_repo(
 ) -> str | None:
     """把远端仓库浅克隆到 ``dest``；已存在快照则复用。返回 commit sha。"""
     if target.url is None:
-        raise CloneError("目标不是远端仓库")
+        raise CloneError(t("clone.notRemote"))
     dest = Path(dest)
 
     if (dest / ".git").is_dir():
         if on_message:
-            on_message("复用已有快照")
+            on_message(t("clone.reusing"))
         return head_sha(dest, settings)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -142,7 +143,7 @@ def clone_repo(
 
     env = _build_env(settings.cache_dir, settings.git_token)
     if on_message:
-        on_message("正在浅克隆仓库…")
+        on_message(t("clone.cloning"))
 
     with open(err_file, "wb") as err_handle:
         try:
@@ -155,7 +156,7 @@ def clone_repo(
                 start_new_session=True,
             )
         except OSError as exc:
-            raise CloneError(f"无法启动 git: {exc}") from exc
+            raise CloneError(t("clone.gitMissing", error=exc)) from exc
 
         deadline = time.monotonic() + settings.clone_timeout_s
         while True:
@@ -167,20 +168,20 @@ def clone_repo(
             if time.monotonic() > deadline:
                 _kill_tree(proc)
                 shutil.rmtree(dest, ignore_errors=True)
-                raise CloneError(f"克隆超时（超过 {settings.clone_timeout_s:.0f} 秒）")
+                raise CloneError(t("clone.timeout", seconds=f"{settings.clone_timeout_s:.0f}"))
             if _dir_size(dest) > settings.max_total_bytes:
                 _kill_tree(proc)
                 shutil.rmtree(dest, ignore_errors=True)
-                raise CloneError(f"仓库体积超过上限（{settings.max_total_bytes / 2**30:.1f} GiB）")
+                raise CloneError(t("clone.tooLarge", gib=f"{settings.max_total_bytes / 2**30:.1f}"))
 
     if proc.returncode != 0:
         detail = _read_error_tail(err_file)
         shutil.rmtree(dest, ignore_errors=True)
-        raise CloneError(f"git clone 失败（exit {proc.returncode}）: {detail}")
+        raise CloneError(t("clone.failed", code=proc.returncode, detail=detail))
 
     sha = head_sha(dest, settings)
     if on_message:
-        on_message(f"克隆完成 {sha[:8] if sha else ''}".strip())
+        on_message(t("clone.done", commit=(sha[:8] if sha else "")).strip())
     return sha
 
 
@@ -188,6 +189,6 @@ def _read_error_tail(err_file: Path) -> str:
     try:
         data = err_file.read_bytes()[-_ERROR_TAIL_BYTES:]
     except OSError:
-        return "（无 stderr 输出）"
+        return t("clone.noStderr")
     text = data.decode("utf-8", "replace").strip()
-    return redact_secrets(text) or "（无 stderr 输出）"
+    return redact_secrets(text) or t("clone.noStderr")

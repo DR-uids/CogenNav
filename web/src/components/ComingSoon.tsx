@@ -1,7 +1,10 @@
+import { useT } from "../i18n";
 import { viewMeta, type ViewMeta } from "../views/registry";
 
 /** 未实现视图的统一占位：明确写出归属里程碑与将要交付的能力。 */
 export function ComingSoon({ meta }: { meta: ViewMeta }) {
+  const t = useT();
+
   return (
     <div
       className="flex h-full items-center justify-center p-8"
@@ -12,11 +15,11 @@ export function ComingSoon({ meta }: { meta: ViewMeta }) {
           <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-amber-300">
             {meta.milestone}
           </span>
-          <h2 className="text-lg font-medium text-zinc-100">{meta.label}</h2>
+          <h2 className="text-lg font-medium text-zinc-100">{t(meta.labelKey)}</h2>
         </div>
-        <p className="text-sm leading-relaxed text-zinc-400">{meta.blurb}</p>
+        <p className="text-sm leading-relaxed text-zinc-400">{t(meta.blurbKey)}</p>
         <p className="mt-4 text-xs text-zinc-600">
-          该视图在 {meta.milestone} 里程碑交付；当前为 M0 骨架。
+          {t("comingSoon.delivered", { milestone: meta.milestone })}
         </p>
       </div>
     </div>

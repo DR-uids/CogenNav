@@ -23,6 +23,7 @@ from typing import Any
 from .config import Settings
 from .graph.schema import RepoMeta
 from .graph.store import Store, open_store
+from .i18n import DEFAULT_LOCALE, reset_locale, set_locale, t
 from .security import redact_secrets
 
 _EMIT_INTERVAL_S = 0.15
@@ -221,7 +222,11 @@ class JobEvent:
 
 
 class Progress:
-    """传给 runner 的进度上报句柄：写库 + 广播 + 节流。"""
+    """传给 runner 的进度上报句柄：写库 + 广播 + 节流。
+
+    人可读的文案统一走 :meth:`say`：流水线只给「文案键 + 参数」，语言由
+    当前上下文（请求头 / 任务语言）决定，CLI 与 Web 因此可以共用同一条流水线。
+    """
 
     def __init__(self, manager: JobManager, job_id: str) -> None:
         self._manager = manager
@@ -305,8 +310,13 @@ class Progress:
             fields["finishedAt"] = now_iso()
         self._manager._persist(self._job_id, event, fields)
 
+    def say(self, key: str, **fields: Any) -> None:
+        """用文案键上报 message（其余字段透传给 :meth:`update`）。"""
+        message = t(key, **fields.pop("params", {}))
+        self.update(message=message, **fields)
+
     def done(self, message: str | None = None) -> None:
-        self.update(phase="done", state="done", message=message or "索引完成", force=True)
+        self.update(phase="done", state="done", message=message or t("jobs.done"), force=True)
 
     def fail(self, error: str) -> None:
         clean = redact_secrets(error)
@@ -374,9 +384,13 @@ class ConsoleProgress:
             detail = f"{detail} ({current or 0}/{total})"
         self._emit(f"[{label}] {detail}".rstrip())
 
+    def say(self, key: str, **fields: Any) -> None:
+        """终端进度：与 :class:`Progress` 同签名（CLI 下语言就是默认中文）。"""
+        self.update(message=t(key, **fields.pop("params", {})), **fields)
+
     def done(self, message: str | None = None) -> None:
         self.state = "done"
-        self._emit(f"[完成] {message or '索引完成'}")
+        self._emit(f"[完成] {message or t('jobs.done')}")
 
     def fail(self, error: str) -> None:
         self.state = "error"
@@ -400,27 +414,43 @@ class JobManager:
         ] = {}
 
     # ── 任务生命周期 ────────────────────────────────────────────────
-    def submit(self, job_id: str, meta: RepoMeta, runner: Runner) -> None:
-        self.store.create(job_id, meta.repo_id)
-        self._executor.submit(self._run, job_id, meta, runner)
+    def submit(
+        self,
+        job_id: str,
+        meta: RepoMeta,
+        runner: Runner,
+        *,
+        locale: str = DEFAULT_LOCALE,
+    ) -> None:
+        """提交任务；``locale`` 是「提交这个任务的用户界面语言」。
 
-    def _run(self, job_id: str, meta: RepoMeta, runner: Runner) -> None:
-        progress = Progress(self, job_id)
-        progress.update(phase="resolve", state="running", message="开始索引", force=True)
+        线程池不继承调用方的 ContextVar，所以语言必须显式传进来（见 ``_run``）。
+        """
+        self.store.create(job_id, meta.repo_id)
+        self._executor.submit(self._run, job_id, meta, runner, locale)
+
+    def _run(self, job_id: str, meta: RepoMeta, runner: Runner, locale: str) -> None:
+        # 任务线程里显式设置语言：流水线（含 clone / parse）里所有 t() 都跟着它走。
+        token = set_locale(locale)
         try:
-            store = open_store(self.settings, meta.repo_id)
-        except sqlite3.Error as exc:
-            progress.fail(f"无法打开仓库数据库: {exc}")
-            return
-        try:
-            runner(store, progress)
-        except Exception as exc:  # 任何失败都必须落到任务状态里，不能只打日志
-            progress.fail(f"{type(exc).__name__}: {exc}")
-        else:
-            if progress.state != "error":
-                progress.done(progress.message or "索引完成")
+            progress = Progress(self, job_id)
+            progress.say("jobs.starting", phase="resolve", state="running", force=True)
+            try:
+                store = open_store(self.settings, meta.repo_id)
+            except sqlite3.Error as exc:
+                progress.fail(t("jobs.openDbFailed", error=exc))
+                return
+            try:
+                runner(store, progress)
+            except Exception as exc:  # 任何失败都必须落到任务状态里，不能只打日志
+                progress.fail(f"{type(exc).__name__}: {exc}")
+            else:
+                if progress.state != "error":
+                    progress.done(progress.message or t("jobs.done"))
+            finally:
+                store.close()
         finally:
-            store.close()
+            reset_locale(token)
 
     def status(self, job_id: str) -> dict[str, Any] | None:
         return self.store.get(job_id)

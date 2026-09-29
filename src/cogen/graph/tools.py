@@ -11,6 +11,7 @@ from functools import lru_cache
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from ..i18n import t
 from .store import Store
 
 #: 默认参与"影响面"的关系：谁依赖我（入边）
@@ -383,7 +384,7 @@ def tree_payload(store: Store, *, path: str = "", depth: int = 3) -> dict[str, A
     def serialize(node: _TreeNode, name: str, current: str, level: int) -> dict[str, Any]:
         is_file = node.file is not None
         payload: dict[str, Any] = {
-            "name": name or "(根目录)",
+            "name": name or t("common.rootDirectory"),
             "path": current,
             "type": "file" if is_file else "dir",
             "loc": node.loc,

@@ -75,8 +75,8 @@ describe("RepoList", () => {
     expect(screen.getByText("alpha")).toBeTruthy();
     expect(screen.getByText("beta")).toBeTruthy();
     expect(screen.getAllByTestId("repo-file-count").map((el) => el.textContent)).toEqual([
-      "12 文件",
-      "3 文件",
+      "12 files",
+      "3 files",
     ]);
     // 语言只展示前 3 个（Go 与 Rust 同为 1，稳定排序下 Rust 在前）
     expect(screen.getAllByTestId("repo-language").map((el) => el.textContent)).toEqual([
@@ -85,15 +85,17 @@ describe("RepoList", () => {
       "Rust",
       "Python",
     ]);
-    expect(screen.getByTestId("repo-state-done").textContent).toBe("已完成");
-    expect(screen.getByTestId("repo-state-running").textContent).toBe("进行中");
+    expect(screen.getByTestId("repo-state-done").textContent).toBe("Done");
+    expect(screen.getByTestId("repo-state-running").textContent).toBe("Running");
   });
 
   test("空列表展示空态提示", async () => {
     vi.stubGlobal("fetch", vi.fn(async (_url: string, _init?: RequestInit) => jsonRes({ repos: [] })));
 
     renderList();
-    expect((await screen.findByTestId("repo-empty")).textContent).toContain("还没有索引任何仓库");
+    expect((await screen.findByTestId("repo-empty")).textContent).toContain(
+      "No repositories indexed yet",
+    );
   });
 
   test("点击卡片写入 store 的 repoId", async () => {

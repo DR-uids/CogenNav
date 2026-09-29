@@ -37,6 +37,7 @@ src/cogen/
   mcp/server.py        MCP Server（stdio / streamable-http）
   api/                 app + routes_{repos,jobs,files,graph,ai} + deps
   export/              json_export / report / html_export
+  i18n.py              后端文案表 + Accept-Language 解析（无请求头时回落中文）
 web/                   React 单页应用（目录树 / CST / 图谱 / 问答）
 scripts/               dev.sh（并行起服务）、demo.sh（一键演示）、bench.py（性能基准）
 tests/                 单测 + 接口测试 + fixtures/graph_repo（多语言图谱 fixture）
@@ -122,4 +123,8 @@ tests/                 单测 + 接口测试 + fixtures/graph_repo（多语言�
 - 状态：`stores/ui.ts`（zustand）存选中文件/节点/任务；服务端数据一律走 react-query，
   queryKey 与 queryOptions 集中在 `api/*.ts`。
 - 深链：`lib/deepLink.ts` 统一读写 URL 参数（`history.replaceState`，不引入路由库）。
+- 多语言：`i18n/` 是一张扁平文案表（`messages.en.ts` 定义键，`messages.zh.ts` 用
+  `Record<MessageKey, string>` 强制键一一对应，漏译即 `tsc` 报错）。组件用 `useT()` 订阅语言，
+  `api/*` 与 `lib/*` 的兜底文案用模块级 `t()`；`stores/locale.ts` 负责默认英文、
+  localStorage 记住选择与 `?lang=` 深链，请求统一带 `Accept-Language` 让后端报错同语言。
 - 渲染器性能：forceatlas2 迭代数按规模 200/120/60，Barnes-Hut 阈值降到 300（1500 节点 ×60 迭代 ≈ 360ms）。

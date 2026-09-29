@@ -27,7 +27,7 @@ describe("JobProgress", () => {
 
     render(<JobProgress />);
 
-    expect(screen.getByTestId("job-progress-phase").textContent).toBe("遍历文件");
+    expect(screen.getByTestId("job-progress-phase").textContent).toBe("Walking files");
     expect(screen.getByTestId("job-progress-percent").textContent).toBe("75%");
     expect(screen.getByTestId("job-progress-count").textContent).toBe("3/4");
     // 优先展示当前文件
@@ -50,7 +50,7 @@ describe("JobProgress", () => {
 
     render(<JobProgress />);
 
-    expect(screen.getByTestId("job-progress-phase").textContent).toBe("克隆仓库");
+    expect(screen.getByTestId("job-progress-phase").textContent).toBe("Cloning repository");
     expect(screen.getByTestId("job-progress-percent").textContent).toBe("42%");
   });
 
@@ -69,7 +69,7 @@ describe("JobProgress", () => {
 
     render(<JobProgress />);
 
-    expect(screen.getByTestId("job-progress-phase").textContent).toBe("完成");
+    expect(screen.getByTestId("job-progress-phase").textContent).toBe("Done");
     expect(screen.getByTestId("job-progress-percent").textContent).toBe("100%");
   });
 
@@ -98,7 +98,7 @@ describe("JobProgress", () => {
   test("只有 jobId 没有进度时展示等待态", () => {
     useUi.setState({ jobId: "job-1", jobProgress: null });
     render(<JobProgress />);
-    expect(screen.getByTestId("job-progress-phase").textContent).toContain("等待");
+    expect(screen.getByTestId("job-progress-phase").textContent).toContain("Waiting");
     expect(screen.getByTestId("job-progress-percent").textContent).toBe("0%");
   });
 
@@ -109,11 +109,11 @@ describe("JobProgress", () => {
   });
 
   test("阶段/状态标签映射与未知值兜底", () => {
-    expect(phaseLabel("resolve")).toBe("解析目标");
-    expect(phaseLabel("done")).toBe("完成");
-    expect(phaseLabel(null)).toBe("空闲");
+    expect(phaseLabel("resolve")).toBe("Resolving target");
+    expect(phaseLabel("done")).toBe("Done");
+    expect(phaseLabel(null)).toBe("Idle");
     expect(phaseLabel("weird")).toBe("weird");
-    expect(stateLabel("queued")).toBe("排队中");
-    expect(stateLabel(undefined)).toBe("空闲");
+    expect(stateLabel("queued")).toBe("Queued");
+    expect(stateLabel(undefined)).toBe("Idle");
   });
 });

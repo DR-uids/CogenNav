@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 
 import { createRepo } from "../api/client";
+import { useT } from "../i18n";
 import { useUi } from "../stores/ui";
 
 /**
@@ -9,6 +10,7 @@ import { useUi } from "../stores/ui";
  * 并让 react-query 重新拉取仓库列表（新仓库立刻出现在列表里）。
  */
 export function RepoInput() {
+  const t = useT();
   const queryClient = useQueryClient();
   const setRepoId = useUi((s) => s.setRepoId);
   const setJobId = useUi((s) => s.setJobId);
@@ -34,7 +36,7 @@ export function RepoInput() {
     mutation.error instanceof Error
       ? mutation.error.message
       : mutation.error
-        ? "提交失败，请稍后重试"
+        ? t("repoInput.submitFailed")
         : null;
   const errorText = localError ?? serverError;
 
@@ -48,7 +50,7 @@ export function RepoInput() {
     event.preventDefault();
     const value = target.trim();
     if (!value) {
-      setLocalError("请先填写仓库地址或本地绝对路径");
+      setLocalError(t("repoInput.required"));
       return;
     }
     setLocalError(null);
@@ -60,7 +62,7 @@ export function RepoInput() {
   return (
     <form className="border-b border-zinc-800 p-3" onSubmit={onSubmit}>
       <label className="mb-1.5 block text-xs font-medium text-zinc-400" htmlFor="repo-target">
-        仓库地址 / 本地路径
+        {t("repoInput.label")}
       </label>
       <div className="flex gap-1.5">
         <input
@@ -71,7 +73,7 @@ export function RepoInput() {
           disabled={pending}
           autoComplete="off"
           spellCheck={false}
-          placeholder="https://github.com/owner/repo"
+          placeholder={t("repoInput.placeholder")}
           className="min-w-0 flex-1 rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 font-mono text-xs text-zinc-300 placeholder:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
@@ -80,7 +82,7 @@ export function RepoInput() {
           disabled={pending}
           className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-100 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "提交中…" : "索引"}
+          {pending ? t("repoInput.submitting") : t("repoInput.submit")}
         </button>
       </div>
 
@@ -94,9 +96,7 @@ export function RepoInput() {
         </p>
       )}
 
-      <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600">
-        支持 git 地址与本地绝对路径；索引进度经 SSE 实时推送。
-      </p>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600">{t("repoInput.hint")}</p>
     </form>
   );
 }

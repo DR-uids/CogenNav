@@ -3,6 +3,7 @@ import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
 import { useEffect, useRef } from "react";
 
+import { useT } from "../../i18n";
 import { communityColor, hopColor, kindStroke, nodeRadius } from "../../lib/graphColors";
 import type { ForceRendererProps } from "./renderers";
 
@@ -42,6 +43,7 @@ export default function ForceGraph({
   onSelectNode,
   hops,
 }: ForceRendererProps) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graph | null>(null);
@@ -157,7 +159,7 @@ export default function ForceGraph({
       data-testid="force-canvas"
       ref={containerRef}
       className="h-full w-full"
-      aria-label="力导向图谱（sigma 渲染）"
+      aria-label={t("graph.forceAria")}
     />
   );
 }

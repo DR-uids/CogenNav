@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from ..config import get_settings
 from ..graph.schema import RepoMeta
 from ..graph.store import Store, db_path_for, delete_repo_data, list_repo_metas, open_store
+from ..i18n import current_locale, t
 from ..ingest.pipeline import index_repo
 from ..ingest.resolve import index_root, repo_id, resolve_target
 from ..jobs import new_job_id
@@ -46,13 +47,13 @@ def create_repo(payload: RepoCreateRequest) -> RepoCreateResponse:
     root = index_root(settings, target)
     # 本地目标必须当场存在；远端目标的快照目录要等 clone 阶段才创建
     if target.kind == "local" and not root.is_dir():
-        raise HTTPException(status_code=400, detail=f"索引根目录不存在: {root}")
+        raise HTTPException(status_code=400, detail=t("api.rootDirMissing", root=root))
 
     rid = repo_id(target)
     manager = get_manager()
     active = manager.active_for_repo(rid)
     if active is not None:
-        raise HTTPException(status_code=409, detail=f"该仓库已有索引任务在执行（{active['id']}）")
+        raise HTTPException(status_code=409, detail=t("api.repoBusy", jobId=active["id"]))
 
     job_id = new_job_id()
     meta = RepoMeta(
@@ -62,13 +63,14 @@ def create_repo(payload: RepoCreateRequest) -> RepoCreateResponse:
         ref=target.ref,
         root_path=str(root),
         state="queued",
-        message="排队中",
+        message=t("api.queued"),
         job_id=job_id,
     )
     with open_store(settings, rid) as store:
         store.save_repo_meta(meta)
 
-    manager.submit(job_id, meta, partial(index_repo, target, settings))
+    # 索引跑在独立线程：把请求语言一并带上，进度与错误才是当前界面语言的
+    manager.submit(job_id, meta, partial(index_repo, target, settings), locale=current_locale())
     return RepoCreateResponse(repoId=rid, jobId=job_id)
 
 
@@ -95,11 +97,11 @@ def get_repo(repo_id: str) -> dict[str, object]:
     settings = get_settings()
     db_file = db_path_for(settings, rid)
     if not db_file.exists():
-        raise HTTPException(status_code=404, detail="仓库不存在")
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
     with Store(db_file) as store:
         meta = store.load_repo_meta()
     if meta is None:
-        raise HTTPException(status_code=404, detail="仓库不存在")
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
     return meta.to_api()
 
 
@@ -109,7 +111,7 @@ def delete_repo(repo_id: str) -> Response:
     settings = get_settings()
     db_file = db_path_for(settings, rid)
     if not db_file.exists():
-        raise HTTPException(status_code=404, detail="仓库不存在")
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
 
     with Store(db_file) as store:
         meta = store.load_repo_meta()

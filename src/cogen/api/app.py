@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
 from ..config import get_settings
+from ..i18n import reset_locale, resolve_locale, set_locale, t
 from . import deps
 from .routes_ai import router as ai_router
 from .routes_files import router as files_router
@@ -50,6 +51,22 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def locale_from_header(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """把 ``Accept-Language`` 固定成请求上下文里的语言。
+
+        中间件里 set、finally 里 reset：语言只在本次请求内有效，不会串到别的请求。
+        同步路由跑在 anyio 的工作线程里，ContextVar 会随之复制；后台索引任务线程
+        不继承上下文，因此提交任务时单独把语言传给 ``JobManager.submit``。
+        """
+        token = set_locale(resolve_locale(request.headers.get("accept-language")))
+        try:
+            return await call_next(request)
+        finally:
+            reset_locale(token)
 
     @app.middleware("http")
     async def no_store_api(
@@ -95,8 +112,7 @@ def _mount_web(app: FastAPI) -> None:
     def index_hint() -> dict[str, str]:
         return {
             "service": "CogenNav",
-            "hint": "前端尚未构建。开发时运行 `make dev`（Vite: http://127.0.0.1:5199），"
-            "或运行 `make build-web` 后由本服务托管。",
+            "hint": t("api.webNotBuilt"),
             "health": "/api/health",
         }
 

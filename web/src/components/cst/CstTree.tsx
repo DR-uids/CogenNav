@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CST_DEPTH, cstQueryKey, cstQueryOptions } from "../../api/cst";
 import { ApiError, type CstNode } from "../../api/client";
+import { useT } from "../../i18n";
 import { childPath, pathSegments } from "../../lib/cstPath";
 import { formatRange } from "../../lib/cstRange";
 import { useUi } from "../../stores/ui";
@@ -78,6 +79,7 @@ function CstNodeRow({
   onSelect: () => void;
   onRetry: () => void;
 }) {
+  const t = useT();
   const { node } = row;
   const canExpand = node.childCount > 0;
   const typeTone = node.error
@@ -107,7 +109,7 @@ function CstNodeRow({
         <button
           type="button"
           data-testid="cst-node-toggle"
-          aria-label={`${open ? "折叠" : "展开"} ${node.type}`}
+          aria-label={`${open ? t("cstTree.collapse") : t("cstTree.expand")} ${node.type}`}
           onClick={(event) => {
             event.stopPropagation();
             onToggle();
@@ -131,7 +133,7 @@ function CstNodeRow({
         </span>
       )}
       {node.error && <span className="shrink-0 text-[10px] text-rose-400">ERROR</span>}
-      {node.missing && <span className="shrink-0 text-[10px] text-amber-400">缺失</span>}
+      {node.missing && <span className="shrink-0 text-[10px] text-amber-400">{t("cstTree.missing")}</span>}
 
       <span data-testid="cst-node-range" className="shrink-0 font-mono text-[10px] text-zinc-600">
         {formatRange({ start: node.start, end: node.end })}
@@ -145,14 +147,14 @@ function CstNodeRow({
 
       {pending && (
         <span data-testid="cst-node-loading" className="shrink-0 text-[10px] text-zinc-500">
-          加载中…
+          {t("cstTree.loading")}
         </span>
       )}
 
       {error && (
         <span className="flex shrink-0 items-center gap-1 text-[10px] text-rose-400">
           <span data-testid="cst-subtree-error" className="truncate">
-            子树加载失败：{error}
+            {t("cstTree.subtreeFailed", { error: error ?? "" })}
           </span>
           <button
             type="button"
@@ -163,7 +165,7 @@ function CstNodeRow({
             }}
             className="rounded border border-rose-900/60 px-1 hover:bg-rose-950/40"
           >
-            重试
+            {t("cstTree.retry")}
           </button>
         </span>
       )}
@@ -179,6 +181,7 @@ function CstNodeRow({
  * 与源码面板共用同一个 queryKey，因此不会重复请求。
  */
 export function CstTree({ repoId, file }: { repoId: string | null; file: string | null }) {
+  const t = useT();
   const selectedNode = useUi((s) => s.selectedNode);
   const selectNode = useUi((s) => s.selectNode);
   const queryClient = useQueryClient();
@@ -207,7 +210,10 @@ export function CstTree({ repoId, file }: { repoId: string | null; file: string 
     if (path === undefined) return;
     if (result.data) subNodes.set(path, result.data.node);
     else if (result.error) {
-      subErrors.set(path, result.error instanceof Error ? result.error.message : "子树加载失败");
+      subErrors.set(
+        path,
+        result.error instanceof Error ? result.error.message : t("cstTree.subtreeFailedPlain"),
+      );
     }
   });
   // 作为 useMemo / useEffect 的依赖：子树数据变化时驱动「重新拉平」与「继续展开祖先链」。
@@ -294,14 +300,16 @@ export function CstTree({ repoId, file }: { repoId: string | null; file: string 
     >
       <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-zinc-800 px-3">
         <h3 className="truncate text-xs font-medium text-zinc-400">
-          CST 语法树
+          {t("cstTree.title")}
           {file && <span className="ml-2 font-mono text-[10px] text-zinc-500">{file}</span>}
         </h3>
         <span className="flex shrink-0 items-center gap-2 text-[10px] text-zinc-600">
           {rootQuery.data && (
-            <span data-testid="cst-total-nodes">共 {rootQuery.data.totalNodes} 个节点</span>
+            <span data-testid="cst-total-nodes">
+              {t("cstTree.totalNodes", { count: rootQuery.data.totalNodes })}
+            </span>
           )}
-          <span>展开深度 {CST_DEPTH}</span>
+          <span>{t("cstTree.depth", { depth: CST_DEPTH })}</span>
           {expanded.size > 0 && (
             <button
               type="button"
@@ -309,7 +317,7 @@ export function CstTree({ repoId, file }: { repoId: string | null; file: string 
               onClick={() => setExpanded(new Set<string>())}
               className="rounded border border-zinc-800 px-1.5 py-0.5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
             >
-              全部折叠
+              {t("cstTree.collapseAll")}
             </button>
           )}
         </span>
@@ -317,13 +325,13 @@ export function CstTree({ repoId, file }: { repoId: string | null; file: string 
 
       {!file && (
         <p data-testid="cst-tree-empty" className="m-4 text-xs leading-relaxed text-zinc-500">
-          从左侧选择一个文件，这里会显示它的 CST 语法树；展开节点可按需下钻。
+          {t("cstTree.pickFile")}
         </p>
       )}
 
       {file && rootQuery.isLoading && (
         <p data-testid="cst-loading" className="m-4 text-xs text-zinc-500">
-          正在解析语法树…
+          {t("cstTree.parsing")}
         </p>
       )}
 
@@ -332,10 +340,8 @@ export function CstTree({ repoId, file }: { repoId: string | null; file: string 
           data-testid="cst-no-grammar"
           className="m-4 rounded border border-amber-900/60 bg-amber-950/20 p-3 text-xs leading-relaxed text-amber-300"
         >
-          <p className="font-medium">该语言没有可用的语法</p>
-          <p className="mt-1 text-amber-200/80">
-            后端未提供这种语言的 tree-sitter 解析器，无法展示 CST；右侧源码仍可正常浏览。
-          </p>
+          <p className="font-medium">{t("cstTree.noGrammarTitle")}</p>
+          <p className="mt-1 text-amber-200/80">{t("cstTree.noGrammarBody")}</p>
         </div>
       )}
 
@@ -344,8 +350,8 @@ export function CstTree({ repoId, file }: { repoId: string | null; file: string 
           data-testid="cst-tree-error"
           className="m-4 rounded border border-rose-900/60 bg-rose-950/30 p-3 text-xs break-all text-rose-300"
         >
-          {notFound ? "文件不存在或超出仓库范围：" : "语法树加载失败："}
-          {rootError instanceof Error ? rootError.message : "未知错误"}
+          {notFound ? t("cstTree.notFound") : t("cstTree.loadFailed")}
+          {rootError instanceof Error ? rootError.message : t("cstTree.unknownError")}
         </p>
       )}
 

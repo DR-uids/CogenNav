@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getHealth } from "../api/client";
+import { useT } from "../i18n";
+import { LocaleSwitch } from "./LocaleSwitch";
 
 function Dot({ tone }: { tone: "ok" | "warn" | "bad" }) {
   const color =
@@ -10,6 +12,7 @@ function Dot({ tone }: { tone: "ok" | "warn" | "bad" }) {
 
 /** 右上角后端健康状态：同时暴露 LLM 是否配置（决定 AI 功能是否降级）。 */
 export function TopBar() {
+  const t = useT();
   const { data, isError, isLoading } = useQuery({
     queryKey: ["health"],
     queryFn: ({ signal }) => getHealth(signal),
@@ -19,18 +22,18 @@ export function TopBar() {
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-900/60 px-4">
       <div className="flex items-baseline gap-3">
         <span className="font-semibold tracking-tight text-zinc-100">CogenNav</span>
-        <span className="text-xs text-zinc-500">代码仓库 CST 解析 · 知识图谱导航</span>
+        <span className="text-xs text-zinc-500">{t("topbar.tagline")}</span>
       </div>
 
       <div className="flex items-center gap-3 text-xs">
         {isLoading && (
           <span className="flex items-center gap-1.5 text-zinc-400">
-            <Dot tone="warn" /> 连接后端…
+            <Dot tone="warn" /> {t("topbar.connecting")}
           </span>
         )}
         {isError && (
           <span className="flex items-center gap-1.5 text-rose-400" data-testid="health-error">
-            <Dot tone="bad" /> 后端未启动（make dev）
+            <Dot tone="bad" /> {t("topbar.offline")}
           </span>
         )}
         {data && (
@@ -42,10 +45,11 @@ export function TopBar() {
             <Dot tone="ok" /> v{data.version}
             <span className="text-zinc-600">·</span>
             <span className={data.llm_configured ? "text-emerald-400" : "text-zinc-500"}>
-              LLM {data.llm_configured ? "已配置" : "未配置"}
+              {data.llm_configured ? t("topbar.llmConfigured") : t("topbar.llmUnconfigured")}
             </span>
           </span>
         )}
+        <LocaleSwitch />
       </div>
     </header>
   );

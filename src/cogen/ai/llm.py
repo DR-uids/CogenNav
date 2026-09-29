@@ -16,6 +16,7 @@ from functools import lru_cache
 from typing import Any
 
 from ..config import Settings
+from ..i18n import t
 from ..security import redact_secrets
 
 DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
@@ -37,7 +38,7 @@ def _client(settings: Settings) -> Any:
     from openai import OpenAI
 
     if not settings.llm_api_key:
-        raise LLMNotConfigured("未配置 COGEN_LLM_API_KEY")
+        raise LLMNotConfigured(t("llm.notConfigured"))
     return OpenAI(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url or DEFAULT_BASE_URL,
@@ -50,7 +51,7 @@ def _async_client(settings: Settings) -> Any:
     from openai import AsyncOpenAI
 
     if not settings.llm_api_key:
-        raise LLMNotConfigured("未配置 COGEN_LLM_API_KEY")
+        raise LLMNotConfigured(t("llm.notConfigured"))
     return AsyncOpenAI(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url or DEFAULT_BASE_URL,
@@ -113,7 +114,7 @@ def complete_text(
     response = complete(settings, messages, temperature=temperature)
     choices = getattr(response, "choices", None) or []
     if not choices:
-        raise LLMError("模型没有返回任何候选结果")
+        raise LLMError(t("llm.noCandidates"))
     return (choices[0].message.content or "").strip()
 
 
@@ -163,7 +164,7 @@ def complete_json(
         raise LLMError(f"{type(exc).__name__}: {exc}") from exc
     choices = getattr(response, "choices", None) or []
     if not choices:
-        raise LLMError("模型没有返回任何候选结果")
+        raise LLMError(t("llm.noCandidates"))
     return parse_json_object(choices[0].message.content or "")
 
 

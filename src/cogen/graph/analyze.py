@@ -14,6 +14,7 @@ from typing import Any
 
 import networkx as nx
 
+from ..i18n import t
 from .schema import EdgeRec, NodeRec
 
 #: 参与社区发现的边关系与权重
@@ -183,7 +184,7 @@ def analyze_graph(
     # ── 孤儿模块：既没有导入别人也没被别人导入的文件 ─────────────────
     connected_files = {path for path, degree in import_graph.degree() if degree > 0}
     orphans = [
-        {"path": path, "reason": "没有 import 关系的文件"}
+        {"path": path, "reason": t("analyze.orphanReason")}
         for path in sorted(file_paths - connected_files)
     ]
     result.orphans = orphans[:_ORPHAN_FILE_LIMIT]
@@ -266,8 +267,8 @@ def _community_name(nodes: list[NodeRec], *, highlight: str | None = None) -> st
         if node.file and "/" in node.file:
             directories[node.file.split("/")[0]] += 1
         elif node.file:
-            directories["(根目录)"] += 1
-    top_dir = directories.most_common(1)[0][0] if directories else "(无文件)"
+            directories[t("common.rootDirectory")] += 1
+    top_dir = directories.most_common(1)[0][0] if directories else t("common.noFiles")
     symbol = highlight or (nodes[0].name if nodes else "?")
     return f"{top_dir} · {symbol}"
 

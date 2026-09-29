@@ -1,29 +1,40 @@
+import { t, useT, type MessageKey } from "../i18n";
 import { useUi, type JobProgressInfo } from "../stores/ui";
 
-/** 阶段中文标签：与后端 phase 一一对应。 */
-const PHASE_LABELS: Record<string, string> = {
-  resolve: "解析目标",
-  clone: "克隆仓库",
-  walk: "遍历文件",
-  done: "完成",
+/** 阶段 → 文案键：与后端 phase 一一对应。 */
+const PHASE_KEYS: Record<string, MessageKey> = {
+  resolve: "job.phase.resolve",
+  clone: "job.phase.clone",
+  walk: "job.phase.walk",
+  parse: "job.phase.parse",
+  extract: "job.phase.extract",
+  build: "job.phase.build",
+  analyze: "job.phase.analyze",
+  name: "job.phase.name",
+  done: "job.phase.done",
 };
 
-const STATE_LABELS: Record<string, string> = {
-  queued: "排队中",
-  running: "进行中",
-  done: "已完成",
-  error: "失败",
+const STATE_KEYS: Record<string, MessageKey> = {
+  queued: "job.state.queued",
+  running: "job.state.running",
+  done: "job.state.done",
+  error: "job.state.error",
 };
 
-/** resolve → 解析目标、clone → 克隆仓库、walk → 遍历文件、done → 完成；未知阶段原样显示。 */
+/**
+ * 阶段标签（resolve → 解析目标 / Resolving target …）；未知阶段原样显示。
+ * 走模块级 `t()`：这两个函数在组件树之外（RepoList、DirTreeView）也会被调用。
+ */
 export function phaseLabel(phase: string | null | undefined): string {
-  if (!phase) return "空闲";
-  return PHASE_LABELS[phase] ?? phase;
+  if (!phase) return t("job.idle");
+  const key = PHASE_KEYS[phase];
+  return key ? t(key) : phase;
 }
 
 export function stateLabel(state: string | null | undefined): string {
-  if (!state) return "空闲";
-  return STATE_LABELS[state] ?? state;
+  if (!state) return t("job.idle");
+  const key = STATE_KEYS[state];
+  return key ? t(key) : state;
 }
 
 /** 后端可能只给 progress 比率或只给 current/total，二者取其一推算百分比；终态恒为 100%。 */
@@ -36,6 +47,7 @@ function percentOf(info: JobProgressInfo): number {
 
 /** 索引进度条：阶段标签 + 百分比 + 当前文件/消息；error 态整块转红。 */
 export function JobProgress() {
+  const t = useT();
   const jobId = useUi((s) => s.jobId);
   const progress = useUi((s) => s.jobProgress);
 
@@ -60,7 +72,7 @@ export function JobProgress() {
             data-testid="job-progress-phase"
             className={isError ? "font-medium text-rose-300" : "font-medium text-zinc-200"}
           >
-            {progress ? phaseLabel(progress.phase) : "等待任务…"}
+            {progress ? phaseLabel(progress.phase) : t("job.waiting")}
           </span>
           {progress && (
             <span className="text-[11px] text-zinc-500">{stateLabel(progress.state)}</span>
@@ -80,7 +92,7 @@ export function JobProgress() {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        aria-label="索引进度"
+        aria-label={t("job.progressAria")}
         data-testid="job-progress-bar"
       >
         <div
@@ -96,8 +108,8 @@ export function JobProgress() {
           title={progress?.file ?? progress?.message ?? undefined}
         >
           {isError
-            ? (progress?.message || "索引失败")
-            : (progress?.file || progress?.message || "正在等待进度上报…")}
+            ? (progress?.message || t("job.failed"))
+            : (progress?.file || progress?.message || t("job.awaitingProgress"))}
         </span>
         {progress && progress.total > 0 && (
           <span data-testid="job-progress-count" className="shrink-0 font-mono text-zinc-500">

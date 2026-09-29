@@ -7,6 +7,7 @@ import re
 from fastapi import HTTPException
 
 from ..config import Settings, get_settings
+from ..i18n import t
 from ..jobs import JobManager
 from ..security import PathEscapeError, ensure_within
 
@@ -40,13 +41,13 @@ def shutdown_state() -> None:
 def check_repo_id(repo_id: str) -> str:
     """repoId 会参与文件路径拼接，必须严格白名单。"""
     if not _REPO_ID.match(repo_id or ""):
-        raise HTTPException(status_code=404, detail="仓库不存在")
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
     return repo_id
 
 
 def check_job_id(job_id: str) -> str:
     if not _JOB_ID.match(job_id or ""):
-        raise HTTPException(status_code=404, detail="任务不存在")
+        raise HTTPException(status_code=404, detail=t("api.jobNotFound"))
     return job_id
 
 
@@ -58,5 +59,5 @@ def safe_db_path(settings: Settings, repo_id: str) -> str:
     try:
         ensure_within(settings.db_dir, path)
     except PathEscapeError as exc:
-        raise HTTPException(status_code=404, detail="仓库不存在") from exc
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound")) from exc
     return str(path)

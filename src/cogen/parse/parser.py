@@ -14,6 +14,7 @@ from typing import Any
 
 from tree_sitter import Language, Parser
 
+from ..i18n import t
 from . import tscompat as ts
 from .languages import (
     has_core_grammar,
@@ -81,7 +82,7 @@ def parse_source(source: bytes, language: str) -> ParsedSource:
     """解析源码；语言不可用时抛 ``UnknownLanguageError``。"""
     lang = resolve_language(language)
     if lang is None:
-        raise UnknownLanguageError(f"该语言没有可用语法: {language}")
+        raise UnknownLanguageError(t("parse.languageMissing", language=language))
     parser = Parser(lang)
     tree = parser.parse(source)
     root = tree.root_node

@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, HTTPException, Request
 from sse_starlette.sse import EventSourceResponse
 
+from ..i18n import t
 from ..jobs import JobManager, is_terminal
 from .deps import check_job_id, get_manager
 
@@ -37,7 +38,7 @@ def _sse(state: str, payload: dict[str, object]) -> dict[str, str]:
 def get_job(job_id: str) -> dict[str, object]:
     job = get_manager().status(check_job_id(job_id))
     if job is None:
-        raise HTTPException(status_code=404, detail="任务不存在")
+        raise HTTPException(status_code=404, detail=t("api.jobNotFound"))
     return job
 
 
@@ -48,7 +49,7 @@ async def job_events(job_id: str, request: Request) -> EventSourceResponse:
     jid = check_job_id(job_id)
     initial = manager.status(jid)
     if initial is None:
-        raise HTTPException(status_code=404, detail="任务不存在")
+        raise HTTPException(status_code=404, detail=t("api.jobNotFound"))
 
     async def gen() -> AsyncIterator[dict[str, str]]:
         yield _sse(str(initial["state"]), initial)

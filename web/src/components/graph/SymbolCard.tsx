@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { symbolQueryOptions } from "../../api/graph";
 import type { SymbolEdgeRef, SymbolIncoming, SymbolOutgoing } from "../../api/client";
+import { useT } from "../../i18n";
 import { formatRange } from "../../lib/cstRange";
 import { useUi } from "../../stores/ui";
 
@@ -79,6 +80,7 @@ type SymbolCardProps = {
  *    （选中根节点，CST 树默认展开根，因此落地就能看到结构）
  */
 export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: SymbolCardProps) {
+  const t = useT();
   const selectFile = useUi((s) => s.selectFile);
   const selectNode = useUi((s) => s.selectNode);
   const setActiveView = useUi((s) => s.setActiveView);
@@ -89,12 +91,12 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
   });
 
   if (!repoId) {
-    return <p className="p-3 text-[11px] text-zinc-500">先在左侧选择仓库。</p>;
+    return <p className="p-3 text-[11px] text-zinc-500">{t("symbol.pickRepo")}</p>;
   }
   if (query.isLoading) {
     return (
       <p data-testid="symbol-loading" className="p-3 text-[11px] text-zinc-500">
-        正在读取符号详情…
+        {t("symbol.loading")}
       </p>
     );
   }
@@ -104,7 +106,7 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
         data-testid="symbol-error"
         className="m-3 rounded border border-rose-900/60 bg-rose-950/30 p-2 text-[11px] break-all text-rose-300"
       >
-        {query.error instanceof Error ? query.error.message : "符号详情加载失败"}
+        {query.error instanceof Error ? query.error.message : t("symbol.loadFailed")}
       </p>
     );
   }
@@ -144,19 +146,25 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
         </p>
         {community && (
           <p data-testid="symbol-community" className="mt-1 text-[10px] text-zinc-400">
-            社区：{community.name}
+            {t("symbol.community", { name: community.name })}
           </p>
         )}
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
           <span data-testid="symbol-degree">
-            degree {node.degree}（入 {node.inDegree} / 出 {node.outDegree}）
+            {t("symbol.degree", {
+              degree: node.degree,
+              inDegree: node.inDegree,
+              outDegree: node.outDegree,
+            })}
           </span>
           {node.language && <span>{node.language}</span>}
         </div>
       </header>
 
       <section>
-        <h4 className="mb-1 text-[10px] tracking-wide text-zinc-500 uppercase">定义</h4>
+        <h4 className="mb-1 text-[10px] tracking-wide text-zinc-500 uppercase">
+          {t("symbol.definition")}
+        </h4>
         {definition ? (
           <>
             <p data-testid="symbol-definition-file" className="font-mono break-all text-zinc-300">
@@ -175,7 +183,7 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
             )}
           </>
         ) : (
-          <p className="text-zinc-600">后端没有给出定义位置。</p>
+          <p className="text-zinc-600">{t("symbol.noDefinition")}</p>
         )}
         <button
           type="button"
@@ -184,7 +192,7 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
           onClick={openInCst}
           className="mt-2 rounded border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
         >
-          查看语法树
+          {t("symbol.openCst")}
         </button>
         {node.file && (
           <p className="mt-1 font-mono text-[10px] break-all text-zinc-600">{node.file}</p>
@@ -193,14 +201,14 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
 
       <section>
         <h4 className="mb-1 flex items-center gap-1 text-[10px] tracking-wide text-zinc-500 uppercase">
-          入边
+          {t("symbol.incoming")}
           <span data-testid="symbol-incoming-count" className="text-zinc-600">
             {incoming.length}
           </span>
         </h4>
         {incoming.length === 0 ? (
           <p data-testid="symbol-incoming-empty" className="text-zinc-600">
-            没有符号调用/引用它。
+            {t("symbol.incomingEmpty")}
           </p>
         ) : (
           <ul data-testid="symbol-incoming" className="space-y-0.5">
@@ -220,14 +228,14 @@ export function SymbolCard({ repoId, nodeId, onSelectNode, onOpenInCst }: Symbol
 
       <section>
         <h4 className="mb-1 flex items-center gap-1 text-[10px] tracking-wide text-zinc-500 uppercase">
-          出边
+          {t("symbol.outgoing")}
           <span data-testid="symbol-outgoing-count" className="text-zinc-600">
             {outgoing.length}
           </span>
         </h4>
         {outgoing.length === 0 ? (
           <p data-testid="symbol-outgoing-empty" className="text-zinc-600">
-            它没有调用/引用别的符号。
+            {t("symbol.outgoingEmpty")}
           </p>
         ) : (
           <ul data-testid="symbol-outgoing" className="space-y-0.5">

@@ -10,6 +10,7 @@
  *    `setJobEventsFactory` 同一套思路（jsdom 里加载 wasm 既慢又不稳定）。
  */
 
+import { t } from "../i18n";
 import { toShikiDecorations, type CstRange, type ShikiDecoration } from "./cstRange";
 
 /** 单主题：github-dark 与页面的 zinc 深色底最接近。 */
@@ -149,7 +150,7 @@ function getHighlighter(): Promise<ShikiHighlighterLike> {
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`高亮超时（${ms}ms）`)), ms);
+    const timer = setTimeout(() => reject(new Error(t("shiki.timeout", { ms }))), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CST_DEPTH, cstQueryOptions } from "../../api/cst";
 import { getFileText } from "../../api/client";
+import { useT } from "../../i18n";
 import {
   SOURCE_MARK_CLASS,
   byteColumnToCharColumn,
@@ -39,6 +40,7 @@ function lineRangeOf(lines: readonly string[], range: CstRange | null): LineRang
  * shiki 不可用（wasm 加载失败、语言不支持、超时）时走这里，保证功能不缺失。
  */
 function PlainSource({ text, range }: { text: string; range: CstRange | null }) {
+  const t = useT();
   const lines = useMemo(() => splitSourceLines(text), [text]);
   const lineRange = useMemo(() => lineRangeOf(lines, range), [lines, range]);
   const visible = lines.slice(0, MAX_PLAIN_LINES);
@@ -63,7 +65,7 @@ function PlainSource({ text, range }: { text: string; range: CstRange | null }) 
                 <mark
                   className={SOURCE_MARK_CLASS}
                   data-testid="cst-source-mark"
-                  title="选中节点的源码范围"
+                  title={t("cstSource.selectionTitle")}
                 >
                   {middle}
                 </mark>
@@ -88,7 +90,7 @@ function PlainSource({ text, range }: { text: string; range: CstRange | null }) 
       })}
       {lines.length > visible.length && (
         <div className="mt-2 text-[10px] text-zinc-500">
-          仅渲染前 {MAX_PLAIN_LINES} 行（共 {lines.length} 行）
+          {t("cstSource.truncatedLines", { limit: MAX_PLAIN_LINES, total: lines.length })}
         </div>
       )}
     </pre>
@@ -102,6 +104,7 @@ function PlainSource({ text, range }: { text: string; range: CstRange | null }) 
  * 命中缓存时零开销，深链进来（树还没展开）也能定位。
  */
 export function CstSource({ repoId, file }: { repoId: string | null; file: string | null }) {
+  const t = useT();
   const selectedNode = useUi((s) => s.selectedNode);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -170,7 +173,7 @@ export function CstSource({ repoId, file }: { repoId: string | null; file: strin
   return (
     <section data-testid="cst-source-panel" className="flex w-[40%] min-w-0 shrink-0 flex-col">
       <div className="flex h-10 shrink-0 items-center gap-2 overflow-hidden border-b border-zinc-800 px-3">
-        <h3 className="shrink-0 text-xs font-medium text-zinc-400">源码</h3>
+        <h3 className="shrink-0 text-xs font-medium text-zinc-400">{t("cstSource.title")}</h3>
         {language && (
           <span data-testid="cst-source-language" className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
             {language}
@@ -187,20 +190,20 @@ export function CstSource({ repoId, file }: { repoId: string | null; file: strin
         )}
         {selectedNode !== null && !node && nodeQuery.isLoading && (
           <span data-testid="cst-source-node-loading" className="text-[10px] text-zinc-500">
-            定位节点…
+            {t("cstSource.locating")}
           </span>
         )}
       </div>
 
       {!file && (
         <p data-testid="cst-source-empty" className="m-4 text-xs leading-relaxed text-zinc-500">
-          选中文件后在这里浏览源码；选中树节点会高亮对应范围。
+          {t("cstSource.pickFile")}
         </p>
       )}
 
       {file && fileQuery.isLoading && (
         <p data-testid="cst-source-loading" className="m-4 text-xs text-zinc-500">
-          正在读取源码…
+          {t("cstSource.loading")}
         </p>
       )}
 
@@ -209,7 +212,7 @@ export function CstSource({ repoId, file }: { repoId: string | null; file: strin
           data-testid="cst-source-error"
           className="m-4 rounded border border-rose-900/60 bg-rose-950/30 p-3 text-xs break-all text-rose-300"
         >
-          {error instanceof Error ? error.message : "源码加载失败"}
+          {error instanceof Error ? error.message : t("cstSource.loadFailed")}
         </p>
       )}
 
@@ -217,7 +220,7 @@ export function CstSource({ repoId, file }: { repoId: string | null; file: strin
         <div ref={scrollRef} data-testid="cst-source-scroll" className="min-h-0 flex-1 overflow-auto">
           {fileQuery.data?.truncated && (
             <p className="border-b border-amber-900/40 bg-amber-950/20 px-3 py-1 text-[10px] text-amber-300">
-              文件过大，源码已被截断展示。
+              {t("cstSource.truncated")}
             </p>
           )}
           {html ? (
@@ -233,7 +236,7 @@ export function CstSource({ repoId, file }: { repoId: string | null; file: strin
       )}
 
       {file && !error && !fileQuery.isLoading && !text && (
-        <p className="m-4 text-xs text-zinc-500">该文件是空的。</p>
+        <p className="m-4 text-xs text-zinc-500">{t("cstSource.emptyFile")}</p>
       )}
     </section>
   );

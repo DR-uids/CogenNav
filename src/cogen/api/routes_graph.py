@@ -8,6 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from ..graph import tools
+from ..i18n import t
 from .routes_files import repo_context
 
 router = APIRouter(prefix="/api/repos/{repo_id}", tags=["graph"])
@@ -31,7 +32,7 @@ def get_tree(
         try:
             return tools.tree_payload(store, path=path, depth=depth)
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"目录不存在: {path}") from exc
+            raise HTTPException(status_code=404, detail=t("api.dirNotFound", path=path)) from exc
 
 
 @router.get("/analysis")
@@ -65,7 +66,7 @@ def get_graph(
                 depth=depth,
             )
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"节点不存在: {focus}") from exc
+            raise HTTPException(status_code=404, detail=t("api.nodeNotFound", node=focus)) from exc
 
 
 @router.get("/graph/neighbors")
@@ -88,7 +89,9 @@ def get_neighbors(
                 limit=limit,
             )
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"节点不存在: {node_id}") from exc
+            raise HTTPException(
+                status_code=404, detail=t("api.nodeNotFound", node=node_id)
+            ) from exc
 
 
 @router.get("/graph/path")
@@ -102,7 +105,7 @@ def get_path(
         try:
             return tools.path_payload(store, source, target, max_depth=max_depth)
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"节点不存在: {exc}") from exc
+            raise HTTPException(status_code=404, detail=t("api.nodeNotFound", node=exc)) from exc
 
 
 @router.get("/graph/impact")
@@ -119,7 +122,9 @@ def get_impact(
                 store, node_id, depth=depth, relations=_parse_list(relations)
             )
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"节点不存在: {node_id}") from exc
+            raise HTTPException(
+                status_code=404, detail=t("api.nodeNotFound", node=node_id)
+            ) from exc
 
 
 @router.get("/search")
@@ -142,4 +147,6 @@ def get_symbol(
         try:
             return tools.symbol_payload(store, node_id, root_path=str(root))
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"节点不存在: {node_id}") from exc
+            raise HTTPException(
+                status_code=404, detail=t("api.nodeNotFound", node=node_id)
+            ) from exc

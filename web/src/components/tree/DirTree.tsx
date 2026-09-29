@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
 
+import { useT } from "../../i18n";
 import { languageColor } from "../../lib/languages";
 import { needsChildren, type DirRow } from "../../lib/treeStats";
 
@@ -31,6 +32,7 @@ export function DirTree({
   onSelectDir,
   onSelectFile,
 }: DirTreeProps) {
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -67,7 +69,10 @@ export function DirTree({
                 aria-level={row.depth + 1}
                 aria-selected={selected}
                 aria-expanded={isDir ? open : undefined}
-                aria-label={`${isDir ? "目录" : "文件"} ${row.path || "/"}`}
+                aria-label={t("dirTree.rowAria", {
+                  type: isDir ? t("dirTree.kind.dir") : t("dirTree.kind.file"),
+                  path: row.path || "/",
+                })}
                 tabIndex={0}
                 data-testid="dir-row"
                 data-path={row.path}
@@ -85,7 +90,9 @@ export function DirTree({
                   <button
                     type="button"
                     data-testid="dir-row-toggle"
-                    aria-label={`${open ? "折叠" : "展开"} ${row.path || "根目录"}`}
+                    aria-label={`${open ? t("dirTree.collapse") : t("dirTree.expand")} ${
+                      row.path || t("dirTree.root")
+                    }`}
                     onClick={(event) => {
                       event.stopPropagation();
                       onToggle(row);
@@ -112,22 +119,22 @@ export function DirTree({
                 </span>
 
                 {isDir && needsChildren(row.node) && (
-                  <span className="shrink-0 text-[9px] text-zinc-600">未展开</span>
+                  <span className="shrink-0 text-[9px] text-zinc-600">{t("dirTree.notLoaded")}</span>
                 )}
 
                 <span className="ml-auto flex shrink-0 items-center gap-2 tabular-nums">
                   <span data-testid="dir-row-loc" className="text-[10px] text-zinc-500">
-                    {row.node.loc} 行
+                    {t("unit.lines", { count: row.node.loc })}
                   </span>
                   <span data-testid="dir-row-files" className="text-[10px] text-zinc-600">
-                    {row.node.files} 文件
+                    {t("unit.files", { count: row.node.files })}
                   </span>
                   <span data-testid="dir-row-symbols" className="text-[10px] text-zinc-600">
-                    {row.node.symbols} 符号
+                    {t("unit.symbols", { count: row.node.symbols })}
                   </span>
                   {row.node.errorCount > 0 && (
                     <span data-testid="dir-row-errors" className="text-[10px] text-rose-400">
-                      {row.node.errorCount} 错误
+                      {t("unit.errors", { count: row.node.errorCount })}
                     </span>
                   )}
                 </span>

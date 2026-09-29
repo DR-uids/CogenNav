@@ -15,6 +15,7 @@ from typing import Any
 from ..config import Settings
 from ..graph import tools
 from ..graph.store import Store
+from ..i18n import t
 from . import llm
 
 MAX_TOOL_ROUNDS = 4
@@ -22,14 +23,11 @@ MAX_TOOL_RESULT_CHARS = 8000
 MAX_CITATIONS = 20
 MAX_HISTORY_TURNS = 6
 
-SYSTEM_PROMPT = (
-    "你是 CogenNav 的代码仓库导航助手。你只能通过提供的工具查询已索引的代码图谱，"
-    "不要凭常识猜测。回答要求：\n"
-    "1. 用简体中文；\n"
-    "2. 结论先行，再用要点说明依据（调用关系、文件、符号名都要具体）；\n"
-    "3. 涉及符号时写出它的名字，便于用户点击跳转；\n"
-    "4. 工具查不到就直说，不要编造。"
-)
+
+def system_prompt() -> str:
+    """系统提示词：回答语言跟随当前界面语言（英文界面就该用英文回答）。"""
+    return t("ask.systemPrompt")
+
 
 TOOL_SPECS: list[dict[str, Any]] = [
     {
@@ -231,9 +229,9 @@ def execute_tool(
             return _compact(tools.analysis_payload(store))
         if name == "read_file":
             return _read_file(store, arguments, root_path=root_path)
-        return {"error": f"未知工具: {name}"}
+        return {"error": t("ask.unknownTool", name=name)}
     except KeyError as exc:
-        return {"error": f"找不到对象: {exc}"}
+        return {"error": t("ask.objectNotFound", error=exc)}
     except Exception as exc:  # 工具内部错误不能让整轮对话崩掉
         return {"error": f"{type(exc).__name__}: {exc}"}
 
@@ -252,9 +250,9 @@ def _read_file(store: Store, arguments: dict[str, Any], *, root_path: str | None
     rel = str(arguments.get("path", ""))
     record = store.get_file(rel)
     if record is None:
-        return {"error": f"文件未索引: {rel}"}
+        return {"error": t("ask.fileNotIndexed", path=rel)}
     if not root_path:
-        return {"error": "缺少仓库根目录"}
+        return {"error": t("ask.missingRoot")}
     start = max(1, int(arguments.get("startLine", 1)))
     end = int(arguments.get("endLine", start + 80))
     end = min(end, start + 200)
@@ -262,7 +260,7 @@ def _read_file(store: Store, arguments: dict[str, Any], *, root_path: str | None
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError as exc:
-        return {"error": f"读取失败: {exc}"}
+        return {"error": t("ask.readFailed", error=exc)}
     return {
         "path": rel,
         "language": record.language,
@@ -337,13 +335,10 @@ async def answer(
 ) -> AsyncIterator[dict[str, Any]]:
     """SSE 事件流：``tool`` / ``delta`` / ``done`` / ``error``。"""
     if not llm.is_configured(settings):
-        yield {
-            "type": "error",
-            "message": "未配置 LLM（COGEN_LLM_API_KEY），问答不可用；图谱与 CST 功能不受影响。",
-        }
+        yield {"type": "error", "message": t("ask.llmNotConfigured")}
         return
 
-    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt()}]
     for turn in (history or [])[-MAX_HISTORY_TURNS:]:
         role = turn.get("role")
         content = turn.get("content")
@@ -356,15 +351,15 @@ async def answer(
         try:
             response = await asyncio.to_thread(llm.complete, settings, messages, tools=TOOL_SPECS)
         except llm.LLMError as exc:
-            yield {"type": "error", "message": f"调用模型失败：{exc}"}
+            yield {"type": "error", "message": t("ask.modelCallFailed", error=exc)}
             return
         except llm.LLMNotConfigured:
-            yield {"type": "error", "message": "未配置 LLM"}
+            yield {"type": "error", "message": t("ask.llmNotConfiguredShort")}
             return
 
         choices = getattr(response, "choices", None) or []
         if not choices:
-            yield {"type": "error", "message": "模型没有返回结果"}
+            yield {"type": "error", "message": t("ask.emptyModelResult")}
             return
         message = choices[0].message
         calls = list(llm.iter_tool_calls(message))
@@ -408,9 +403,7 @@ async def answer(
                 }
             )
     else:
-        messages.append(
-            {"role": "user", "content": "请基于以上工具结果直接给出结论，不要再调用工具。"}
-        )
+        messages.append({"role": "user", "content": t("ask.forceConclusion")})
 
     text_parts: list[str] = []
     try:
@@ -418,7 +411,7 @@ async def answer(
             text_parts.append(delta)
             yield {"type": "delta", "text": delta}
     except llm.LLMError as exc:
-        yield {"type": "error", "message": f"生成回答失败：{exc}"}
+        yield {"type": "error", "message": t("ask.generateFailed", error=exc)}
         return
     yield {
         "type": "done",
@@ -428,14 +421,31 @@ async def answer(
 
 
 def _summarize(*, name: str, result: dict[str, Any]) -> str:
+    """工具轨迹里的一行摘要（直接显示在 UI 上，因此跟着界面语言走）。"""
     if "error" in result:
         return f"{name}: {result['error']}"
     if "nodes" in result and isinstance(result["nodes"], list):
-        return f"{name}: {len(result['nodes'])} 个节点 / {len(result.get('edges') or [])} 条边"
+        return t(
+            "ask.toolSummary.nodes",
+            name=name,
+            nodes=len(result["nodes"]),
+            edges=len(result.get("edges") or []),
+        )
     if "results" in result and isinstance(result["results"], list):
-        return f"{name}: {len(result['results'])} 条匹配"
+        return t("ask.toolSummary.matches", name=name, count=len(result["results"]))
     if "incoming" in result:
-        return f"{name}: {len(result.get('incoming') or [])} 入边 / {len(result.get('outgoing') or [])} 出边"
+        return t(
+            "ask.toolSummary.edges",
+            name=name,
+            incoming=len(result.get("incoming") or []),
+            outgoing=len(result.get("outgoing") or []),
+        )
     if "content" in result:
-        return f"{name}: 读取 {result.get('path')} 第 {result.get('startLine')}-{result.get('endLine')} 行"
-    return f"{name}: 完成"
+        return t(
+            "ask.toolSummary.file",
+            name=name,
+            path=result.get("path"),
+            start=result.get("startLine"),
+            end=result.get("endLine"),
+        )
+    return t("ask.toolSummary.done", name=name)

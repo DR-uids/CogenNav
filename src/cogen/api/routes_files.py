@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Query
 from ..config import Settings, get_settings
 from ..graph.schema import FileRecord
 from ..graph.store import Store, db_path_for
+from ..i18n import t
 from ..parse.cst import CstOptions, CstPathError, field_of, resolve_node, serialize_subtree
 from ..parse.parser import (
     UnknownLanguageError,
@@ -50,21 +51,19 @@ def repo_context(repo_id: str) -> Iterator[tuple[Store, Path, Settings]]:
     settings = get_settings()
     db_file = db_path_for(settings, rid)
     if not db_file.exists():
-        raise HTTPException(status_code=404, detail="仓库不存在")
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
     store = Store(db_file)
     try:
         meta = store.load_repo_meta()
         if meta is None:
-            raise HTTPException(status_code=404, detail="仓库不存在")
+            raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
         root = Path(meta.root_path)
         if not root.is_dir():
             # 「快照还没建出来」（克隆/遍历还在跑）与「快照被清理掉了」是两回事：
             # 前者是暂时的，前端只要等任务终态再读即可；后者才需要用户重新索引。
             if get_manager().active_for_repo(rid) is not None:
-                raise HTTPException(
-                    status_code=409, detail="索引进行中，快照尚未就绪；请等索引完成后重试"
-                )
-            raise HTTPException(status_code=410, detail="索引快照已不存在，请重新索引")
+                raise HTTPException(status_code=409, detail=t("api.indexInProgress"))
+            raise HTTPException(status_code=410, detail=t("api.snapshotGone"))
         yield store, root, settings
     finally:
         store.close()
@@ -81,9 +80,9 @@ def _absolute(root: Path, rel: str) -> Path:
     try:
         candidate = ensure_within(root, root / rel)
     except PathEscapeError as exc:
-        raise HTTPException(status_code=404, detail="文件不存在") from exc
+        raise HTTPException(status_code=404, detail=t("api.fileNotFound")) from exc
     if not candidate.is_file():
-        raise HTTPException(status_code=404, detail="文件不存在")
+        raise HTTPException(status_code=404, detail=t("api.fileNotFound"))
     return candidate
 
 
@@ -91,16 +90,18 @@ def _read_source(path: Path, settings: Settings) -> bytes:
     try:
         data = path.read_bytes()
     except OSError as exc:
-        raise HTTPException(status_code=500, detail=f"读取失败: {exc.strerror or exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=t("api.readFailed", error=exc.strerror or exc)
+        ) from exc
     if len(data) > settings.max_file_bytes:
-        raise HTTPException(status_code=413, detail="文件超过大小上限，无法浏览")
+        raise HTTPException(status_code=413, detail=t("api.fileTooLarge"))
     return data
 
 
 def _indexed_file(store: Store, rel: str) -> FileRecord:
     record = store.get_file(rel)
     if record is None:
-        raise HTTPException(status_code=404, detail="文件未索引或不存在")
+        raise HTTPException(status_code=404, detail=t("api.fileNotIndexed"))
     return record
 
 
@@ -157,7 +158,7 @@ def get_cst(
         if resolve_language(language) is None:
             raise HTTPException(
                 status_code=415,
-                detail=f"该语言没有可用语法（{language}），仅可浏览源码",
+                detail=t("api.noGrammarForLanguage", language=language),
             )
         absolute = _absolute(root, rel)
 

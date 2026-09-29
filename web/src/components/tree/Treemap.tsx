@@ -1,5 +1,6 @@
 import { useMemo, useState, type MouseEvent } from "react";
 
+import { useT } from "../../i18n";
 import { languageColor, languageLabel } from "../../lib/languages";
 import { TREEMAP_HEIGHT, TREEMAP_WIDTH, type TreemapRect } from "../../lib/treemap";
 
@@ -27,6 +28,7 @@ function FileCell({
   onHover: (rect: TreemapRect, event: MouseEvent<SVGRectElement>) => void;
   onLeave: () => void;
 }) {
+  const t = useT();
   const tiny = rect.width < 3 || rect.height < 3;
   return (
     <rect
@@ -38,7 +40,7 @@ function FileCell({
       data-symbols={rect.symbols}
       role="button"
       tabIndex={-1}
-      aria-label={`文件 ${rect.path}`}
+      aria-label={t("treemap.fileAria", { path: rect.path })}
       x={rect.x}
       y={rect.y}
       width={rect.width}
@@ -69,6 +71,7 @@ export function Treemap({
   onSelectFile,
   onSelectDir,
 }: TreemapProps) {
+  const t = useT();
   const [hover, setHover] = useState<{ rect: TreemapRect; x: number; y: number } | null>(null);
 
   // 目录先画（面积大、铺在底层），文件后画；同类型按面积从大到小，视觉更稳。
@@ -97,7 +100,7 @@ export function Treemap({
         preserveAspectRatio="xMidYMid meet"
         className="h-full w-full"
         role="img"
-        aria-label="按 LOC 面积、按语言着色的 Treemap"
+        aria-label={t("treemap.svgAria")}
       >
         {ordered.map((rect) =>
           rect.type === "dir" ? (
@@ -139,7 +142,7 @@ export function Treemap({
           data-testid="treemap-empty"
           className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500"
         >
-          没有可展示的文件（该仓库还没有统计到代码行）。
+          {t("treemap.empty")}
         </p>
       )}
 
@@ -153,16 +156,20 @@ export function Treemap({
             {hover.rect.path || "/"}
           </p>
           <p className="text-zinc-400">
-            语言：<span data-testid="treemap-tooltip-language">{languageLabel(hover.rect.language)}</span>
+            {t("treemap.language")}
+            <span data-testid="treemap-tooltip-language">{languageLabel(hover.rect.language)}</span>
           </p>
           <p className="text-zinc-400">
-            LOC：<span data-testid="treemap-tooltip-loc">{hover.rect.loc}</span>
+            {t("treemap.loc")}
+            <span data-testid="treemap-tooltip-loc">{hover.rect.loc}</span>
           </p>
           <p className="text-zinc-400">
-            文件数：<span data-testid="treemap-tooltip-files">{hover.rect.files}</span>
+            {t("treemap.files")}
+            <span data-testid="treemap-tooltip-files">{hover.rect.files}</span>
           </p>
           <p className="text-zinc-400">
-            符号数：<span data-testid="treemap-tooltip-symbols">{hover.rect.symbols}</span>
+            {t("treemap.symbols")}
+            <span data-testid="treemap-tooltip-symbols">{hover.rect.symbols}</span>
           </p>
         </div>
       )}

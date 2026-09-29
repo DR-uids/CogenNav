@@ -16,6 +16,7 @@ from ..ai import ask as ask_module
 from ..ai import llm, naming
 from ..config import get_settings
 from ..graph.store import Store, db_path_for
+from ..i18n import t
 from .deps import check_repo_id
 from .routes_files import repo_context
 
@@ -38,10 +39,10 @@ def _require_repo(repo_id: str) -> None:
     settings = get_settings()
     db_file = db_path_for(settings, rid)
     if not db_file.exists():
-        raise HTTPException(status_code=404, detail="仓库不存在")
+        raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
     with Store(db_file) as store:
         if store.load_repo_meta() is None:
-            raise HTTPException(status_code=404, detail="仓库不存在")
+            raise HTTPException(status_code=404, detail=t("api.repoNotFound"))
 
 
 def _sse(name: str, payload: dict[str, object]) -> dict[str, str]:

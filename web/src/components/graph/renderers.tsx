@@ -14,6 +14,7 @@
 import { lazy, Suspense, useSyncExternalStore, type ComponentType } from "react";
 
 import type { GraphEdge, GraphNode } from "../../api/client";
+import { useT } from "../../i18n";
 
 /** 力导向渲染器的输入：纯数据 + 两个回调，没有任何外部依赖假设。 */
 export type ForceRendererProps = {
@@ -104,6 +105,7 @@ type GraphCanvasProps = ForceRendererProps &
  * （影响面只是多传一份跳数映射用于着色），分层 DAG 用 react-flow。
  */
 export function GraphCanvas({ mode, nodes, edges, selectedId, onSelectNode, hops, direction }: GraphCanvasProps) {
+  const t = useT();
   const Force = useForceRenderer();
   const Dag = useDagRenderer();
 
@@ -114,7 +116,7 @@ export function GraphCanvas({ mode, nodes, edges, selectedId, onSelectNode, hops
           data-testid="graph-renderer-loading"
           className="flex h-full items-center justify-center text-xs text-zinc-500"
         >
-          正在加载图形渲染器…
+          {t("graph.rendererLoading")}
         </div>
       }
     >

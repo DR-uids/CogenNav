@@ -10,6 +10,7 @@
  *  - 工厂可注入（`fetchImpl` 参数），jsdom 里用假实现就能覆盖跨 chunk 截断等边界。
  */
 
+import { acceptLanguage, t } from "../i18n";
 import { ApiError, requestJson } from "./client";
 
 /** GET /ai/status：LLM 配置与可用工具（Key 本身不下发）。 */
@@ -188,7 +189,7 @@ function toAskEvent(eventName: string, raw: unknown): AskEvent | null {
         citations: normalizeCitations(raw.citations),
       };
     case "error":
-      return { type: "error", message: text(raw.message) || "问答失败（后端未给出原因）" };
+      return { type: "error", message: text(raw.message) || t("askApi.failed") };
     default:
       return null;
   }
@@ -251,7 +252,11 @@ export function streamAsk(
   const consume = async () => {
     const res = await doFetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        "Accept-Language": acceptLanguage(),
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -261,7 +266,7 @@ export function streamAsk(
       return;
     }
     if (!res.body) {
-      emit({ type: "error", message: "后端没有返回事件流（缺少响应体）" });
+      emit({ type: "error", message: t("askApi.noBody") });
       return;
     }
 

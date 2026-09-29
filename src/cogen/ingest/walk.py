@@ -21,6 +21,7 @@ from pathspec import PathSpec
 
 from ..config import Settings
 from ..graph.schema import FileRecord, SkippedFile
+from ..i18n import t
 from ..parse.languages import detect_language
 
 #: 目录名精确匹配即跳过
@@ -143,7 +144,7 @@ def walk_repo(
     """遍历 ``root``，返回可索引文件与跳过清单。"""
     root = Path(root).resolve()
     if not root.is_dir():
-        raise FileNotFoundError(f"目录不存在: {root}")
+        raise FileNotFoundError(t("walk.dirMissing", root=root))
 
     result = WalkResult(root=root)
 

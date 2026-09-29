@@ -10,7 +10,7 @@ const queryClient = new QueryClient({
 });
 
 const rootEl = document.getElementById("root");
-if (!rootEl) throw new Error("#root 未找到");
+if (!rootEl) throw new Error("#root element not found");
 
 createRoot(rootEl).render(
   <StrictMode>

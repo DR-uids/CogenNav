@@ -15,6 +15,8 @@ from pathlib import Path
 
 from tree_sitter import Language
 
+from ..i18n import t
+
 UNKNOWN_LANGUAGE = "unknown"
 
 
@@ -200,7 +202,7 @@ def load_language(language: str) -> Language:
     """加载语法（进程内缓存）。核心层缺失时抛出 ``KeyError``，请先检查可用性。"""
     spec = CORE_GRAMMARS.get(language)
     if spec is None:
-        raise KeyError(f"核心层没有该语言的语法: {language}（可用 cogen[xlang] 扩展层）")
+        raise KeyError(t("parse.coreLanguageMissing", language=language))
     module = import_module(spec.module)
     loader = getattr(module, spec.function)
     return Language(loader())

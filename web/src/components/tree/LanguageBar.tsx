@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useT } from "../../i18n";
 import { languageColor } from "../../lib/languages";
 import type { LanguageStat } from "../../lib/treeStats";
 
@@ -18,6 +19,7 @@ function percent(value: number, total: number): string {
  * 两种口径（文件数 / 行数）由用户切换，避免「大文件语言被小文件数量淹没」。
  */
 export function LanguageBar({ summary }: { summary: readonly LanguageStat[] }) {
+  const t = useT();
   const [metric, setMetric] = useState<Metric>("loc");
   const value = (stat: LanguageStat) => (metric === "loc" ? stat.loc : stat.files);
   const items = [...summary].sort((a, b) => value(b) - value(a));
@@ -29,11 +31,13 @@ export function LanguageBar({ summary }: { summary: readonly LanguageStat[] }) {
       className="shrink-0 border-b border-zinc-800 bg-zinc-900/20 px-3 py-2"
     >
       <div className="flex items-center gap-3">
-        <h3 className="text-xs font-medium text-zinc-400">语言分布</h3>
+        <h3 className="text-xs font-medium text-zinc-400">{t("langBar.title")}</h3>
         <span data-testid="lang-bar-total" className="text-[10px] text-zinc-600">
-          {metric === "loc" ? `${total} 行` : `${total} 个文件`}
+          {metric === "loc"
+            ? t("unit.lines", { count: total })
+            : t("langBar.totalFiles", { count: total })}
         </span>
-        <div className="ml-auto flex items-center gap-1" role="group" aria-label="语言统计口径">
+        <div className="ml-auto flex items-center gap-1" role="group" aria-label={t("langBar.metricAria")}>
           <button
             type="button"
             data-testid="lang-mode-loc"
@@ -45,7 +49,7 @@ export function LanguageBar({ summary }: { summary: readonly LanguageStat[] }) {
                 : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
             }`}
           >
-            按 LOC
+            {t("langBar.byLoc")}
           </button>
           <button
             type="button"
@@ -58,7 +62,7 @@ export function LanguageBar({ summary }: { summary: readonly LanguageStat[] }) {
                 : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
             }`}
           >
-            按文件数
+            {t("langBar.byFiles")}
           </button>
         </div>
       </div>
@@ -66,7 +70,7 @@ export function LanguageBar({ summary }: { summary: readonly LanguageStat[] }) {
       <div
         data-testid="lang-bar"
         className="mt-1.5 flex h-2 w-full overflow-hidden rounded bg-zinc-800"
-        aria-label="语言占比"
+        aria-label={t("langBar.barAria")}
       >
         {items.map((stat) => {
           const share = total > 0 ? (value(stat) / total) * 100 : 0;
@@ -104,7 +108,7 @@ export function LanguageBar({ summary }: { summary: readonly LanguageStat[] }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-1.5 text-[10px] text-zinc-600">还没有语言统计。</p>
+        <p className="mt-1.5 text-[10px] text-zinc-600">{t("langBar.empty")}</p>
       )}
     </section>
   );

@@ -11,14 +11,15 @@ import {
 } from "@xyflow/react";
 import { useMemo } from "react";
 
+import { useT, type MessageKey } from "../../i18n";
 import { DAG_NODE_HEIGHT, DAG_NODE_WIDTH, layoutDag } from "../../lib/dagLayout";
 import { kindStroke } from "../../lib/graphColors";
 import type { DagDirection, DagRendererProps } from "./renderers";
 
-const DIRECTION_LABEL: Record<DagDirection, string> = {
-  both: "双向",
-  out: "下游（出边）",
-  in: "上游（入边）",
+const DIRECTION_KEYS: Record<DagDirection, MessageKey> = {
+  both: "dagDirection.both",
+  out: "dagDirection.out",
+  in: "dagDirection.in",
 };
 
 /**
@@ -36,6 +37,7 @@ export default function LayeredDag({
   onSelectNode,
   direction,
 }: DagRendererProps) {
+  const t = useT();
   const { rfNodes, rfEdges, ranks, rankCount } = useMemo(() => {
     const layout = layoutDag(nodes, edges);
 
@@ -101,8 +103,14 @@ export default function LayeredDag({
         data-testid="dag-summary"
         className="pointer-events-none absolute top-2 left-3 rounded bg-zinc-950/80 px-2 py-0.5 text-[10px] text-zinc-400"
       >
-        {DIRECTION_LABEL[direction]} · {rfNodes.length} 个节点 · {rankCount} 层
-        {selectedId && ranks.has(selectedId) ? ` · 焦点在第 ${(ranks.get(selectedId) ?? 0) + 1} 层` : ""}
+        {t("dag.summary", {
+          direction: t(DIRECTION_KEYS[direction]),
+          nodes: t("unit.nodes", { count: rfNodes.length }),
+          ranks: t("dag.rank", { count: rankCount }),
+        })}
+        {selectedId && ranks.has(selectedId)
+          ? t("dag.focusLayer", { layer: (ranks.get(selectedId) ?? 0) + 1 })
+          : ""}
       </div>
     </div>
   );

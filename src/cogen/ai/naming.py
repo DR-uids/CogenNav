@@ -16,18 +16,17 @@ from typing import Any
 
 from ..config import Settings
 from ..graph.store import Store
+from ..i18n import t
 from . import llm
 
 #: 一次喂给模型的符号/文件上限（控制成本）
 MAX_SYMBOLS_PER_PROMPT = 12
 MAX_FILES_PER_PROMPT = 8
 
-SYSTEM_PROMPT = (
-    "你是代码架构分析助手。用户会给出一个代码社区的统计（目录、主要符号、文件），"
-    "你要用简体中文给出简短命名与一句话职责描述。"
-    '只输出 JSON，形如 {"name": "...", "summary": "..."}；'
-    "name 不超过 12 个字，summary 不超过 60 个字，不要臆造不存在的模块。"
-)
+
+def system_prompt() -> str:
+    """社区命名提示词：名字会显示在图例/符号卡片里，所以语言跟随界面。"""
+    return t("naming.systemPrompt")
 
 
 @dataclass
@@ -45,7 +44,7 @@ def heuristic_name(directory: str | None, highlight: str | None, size: int) -> s
         return f"{directory} · {highlight}"
     if highlight:
         return highlight
-    return f"{size} 个符号"
+    return t("naming.heuristicSize", count=size)
 
 
 def _community_snapshot(store: Store, community_id: int) -> dict[str, Any]:
@@ -60,7 +59,7 @@ def _community_snapshot(store: Store, community_id: int) -> dict[str, Any]:
     ]
     directories: Counter[str] = Counter()
     for path in files:
-        directories[path.split("/")[0] if "/" in path else "(根目录)"] += 1
+        directories[path.split("/")[0] if "/" in path else t("common.rootDirectory")] += 1
     return {
         "topSymbols": top_symbols,
         "topFiles": [path for path, _ in files.most_common(MAX_FILES_PER_PROMPT)],
@@ -71,18 +70,23 @@ def _community_snapshot(store: Store, community_id: int) -> dict[str, Any]:
 
 def build_prompt(snapshot: dict[str, Any]) -> list[dict[str, str]]:
     lines = [
-        f"社区规模：{snapshot['size']} 个符号",
-        f"主要目录：{snapshot['topDirectory'] or '(未知)'}",
-        "主要文件：",
+        t("naming.snapshotSize", count=snapshot["size"]),
+        t("naming.snapshotDirectory", directory=snapshot["topDirectory"] or t("common.unknown")),
+        t("naming.snapshotFiles"),
         *[f"- {path}" for path in snapshot["topFiles"]],
-        "主要符号：",
+        t("naming.snapshotSymbols"),
         *[
-            f"- {symbol['kind']} {symbol['name']}（{symbol['file'] or '未知文件'}）"
+            t(
+                "naming.snapshotSymbol",
+                kind=symbol["kind"],
+                name=symbol["name"],
+                file=symbol["file"] or t("common.unknownFile"),
+            )
             for symbol in snapshot["topSymbols"]
         ],
     ]
     return [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt()},
         {"role": "user", "content": "\n".join(lines)},
     ]
 
@@ -133,7 +137,7 @@ def name_communities(
                     named_by = "llm"
                     used_llm = True
             except llm.LLMError as exc:
-                errors.append(f"社区 {community_id}: {exc}")
+                errors.append(t("naming.communityError", id=community_id, error=exc))
             except llm.LLMNotConfigured:
                 pass
 
@@ -181,18 +185,28 @@ def architecture_summary(settings: Settings, store: Store) -> dict[str, Any]:
     analysis = store.get_meta().get("analysis") or {}
     communities = store.community_rows()[:12]
     lines = [
-        f"仓库：{meta.target if meta else '未知'}",
-        f"文件 {meta.file_count if meta else 0} 个 / {meta.loc if meta else 0} 行",
-        "主要社区：",
-        *[f"- {row['name']}（{row['size']} 个符号）" for row in communities],
-        "关键节点：",
+        t("naming.summaryRepo", target=meta.target if meta else t("common.unknown")),
+        t(
+            "naming.summarySize",
+            files=meta.file_count if meta else 0,
+            loc=meta.loc if meta else 0,
+        ),
+        t("naming.summaryCommunities"),
+        *[t("naming.summaryCommunity", name=row["name"], count=row["size"]) for row in communities],
+        t("naming.summaryGodNodes"),
         *[
-            f"- {node['kind']} {node['name']}（度数 {node['degree']}）"
+            t(
+                "naming.summaryGodNode",
+                kind=node["kind"],
+                name=node["name"],
+                degree=node["degree"],
+            )
             for node in (analysis.get("godNodes") or [])[:8]
         ],
     ]
     if analysis.get("cycles"):
-        lines.append("存在 import 环：" + "、".join(str(c["size"]) for c in analysis["cycles"][:3]))
+        sizes = t("common.listSeparator").join(str(c["size"]) for c in analysis["cycles"][:3])
+        lines.append(t("naming.summaryCycles", sizes=sizes))
 
     fallback = "\n".join(lines)
     if not llm.is_configured(settings):
@@ -201,14 +215,7 @@ def architecture_summary(settings: Settings, store: Store) -> dict[str, Any]:
         text = llm.complete_text(
             settings,
             [
-                {
-                    "role": "system",
-                    "content": (
-                        "你是代码架构分析助手。根据给定的社区与关键节点统计，"
-                        "用简体中文输出 3-5 条要点（每条一行，以 - 开头），"
-                        "说明这个仓库的模块划分、核心抽象与值得注意的耦合。不要臆造。"
-                    ),
-                },
+                {"role": "system", "content": t("naming.summaryPrompt")},
                 {"role": "user", "content": fallback},
             ],
             temperature=0.2,

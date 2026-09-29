@@ -18,6 +18,7 @@ from ..graph.analyze import analyze_graph
 from ..graph.build import build_graph
 from ..graph.schema import FileRecord, RepoMeta
 from ..graph.store import Store
+from ..i18n import t
 from ..jobs import Progress, now_iso
 from ..parse.parser import is_parsable
 from ..parse.pool import FileAnalysis, ParsePool, analyze_task
@@ -51,13 +52,13 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
 
     try:
         meta.state = "running"
-        meta.message = "正在索引"
+        meta.message = t("pipeline.metaIndexing")
         store.save_repo_meta(meta)
-        progress.update(phase="resolve", message="目标已解析", force=True)
+        progress.say("pipeline.targetResolved", phase="resolve", force=True)
 
         commit = None
         if target.kind == "git":
-            progress.update(phase="clone", message="正在浅克隆仓库…", force=True)
+            progress.say("pipeline.cloning", phase="clone", force=True)
             commit = clone_repo(
                 target,
                 clone_path(settings, target),
@@ -68,29 +69,31 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
 
         root = index_root(settings, target)
         if not root.is_dir():
-            raise FileNotFoundError(f"索引根目录不存在: {root}")
+            raise FileNotFoundError(t("pipeline.rootMissing", root=root))
         # 快照路径可能因为 COGEN_HOME / 工作区被搬动而变过：每次索引都以本次算出的
         # root 为准回写 meta，避免库里留着旧绝对路径导致读接口永久 410。
         meta.root_path = str(root)
 
-        progress.update(phase="walk", message=f"正在遍历 {root}", force=True)
+        progress.say("pipeline.walking", params={"root": root}, phase="walk", force=True)
 
         def on_progress(count: int, file: str) -> None:
-            progress.update(
+            progress.say(
+                "pipeline.foundFiles",
+                params={"count": count},
                 phase="walk",
                 current=count,
                 file=file or None,
-                message=f"已发现 {count} 个文件",
             )
 
         result = walk_repo(root, settings, on_progress=on_progress)
         store.replace_files(result.files)
-        progress.update(
+        progress.say(
+            "pipeline.foundFiles",
+            params={"count": len(result.files)},
             phase="walk",
             current=len(result.files),
             total=len(result.files),
             file=None,
-            message=f"已发现 {len(result.files)} 个文件",
             force=True,
         )
 
@@ -119,11 +122,10 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
                 changed.append(record)
 
         if previous_files:
-            progress.update(
+            progress.say(
+                "pipeline.reused",
+                params={"reused": len(reused_extractions), "changed": len(changed)},
                 phase="parse",
-                message=(
-                    f"复用 {len(reused_extractions)} 个未变更文件，需要重新解析 {len(changed)} 个"
-                ),
                 force=True,
             )
 
@@ -132,22 +134,24 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
         parse_stats: dict[str, Any] = {"parsed": 0, "failed": 0, "errors": 0, "nodes": 0}
         analyses: list[FileAnalysis] = []
         if parsable:
-            progress.update(
+            progress.say(
+                "pipeline.parsing",
+                params={"count": len(parsable)},
                 phase="parse",
                 current=0,
                 total=len(parsable),
                 file=None,
-                message=f"正在解析并抽取 {len(parsable)} 个文件…",
                 force=True,
             )
 
             def on_parse(done: int, total: int, current_file: str) -> None:
-                progress.update(
+                progress.say(
+                    "pipeline.parsed",
+                    params={"done": done, "total": total},
                     phase="parse",
                     current=done,
                     total=total,
                     file=current_file,
-                    message=f"已解析 {done}/{total}",
                 )
 
             with ParsePool(settings, task=analyze_task) as pool:
@@ -178,9 +182,10 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
                 for path, extraction in extractions.items()
             ]
         )
-        progress.update(
+        progress.say(
+            "pipeline.building",
+            params={"count": len(extractions)},
             phase="build",
-            message=f"正在构建图谱（{len(extractions)} 个文件的抽取结果）…",
             force=True,
         )
         resolution = ReferenceResolver(extractions).resolve()
@@ -194,7 +199,7 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
         )
         store.replace_graph(graph.nodes, graph.edges)
 
-        progress.update(phase="analyze", message="正在分析社区与依赖环…", force=True)
+        progress.say("pipeline.analyzing", phase="analyze", force=True)
         analysis = analyze_graph(
             graph.nodes, graph.edges, resolved_call_rate=resolution.stats.resolved_rate
         )
@@ -215,31 +220,38 @@ def index_repo(target: Target, settings: Settings, store: Store, progress: Progr
         meta.state = "done"
 
         summary = Counter(s.reason for s in result.skipped)
-        message = f"共 {meta.file_count} 个文件 / {meta.loc} 行"
+        message = t("pipeline.summary.base", files=meta.file_count, loc=meta.loc)
         if reused_extractions and len(changed) < len(result.files):
-            message += f"（增量：复用 {len(reused_extractions)} 个未变更文件）"
+            message += t("pipeline.summary.incremental", reused=len(reused_extractions))
         if parsable:
-            message += f"，解析 {parse_stats['parsed']} 个（{parse_stats['nodes']} 个 CST 节点）"
+            message += t(
+                "pipeline.summary.parsed",
+                parsed=parse_stats["parsed"],
+                nodes=parse_stats["nodes"],
+            )
             if parse_stats["errors"]:
-                message += f"，{parse_stats['errors']} 个含语法错误"
+                message += t("pipeline.summary.syntaxErrors", count=parse_stats["errors"])
             if parse_stats["failed"]:
-                message += f"，{parse_stats['failed']} 个解析失败"
+                message += t("pipeline.summary.parseFailed", count=parse_stats["failed"])
             if parse_stats.get("mode") == "serial":
-                message += "（进程池不可用，已降级单进程）"
-        message += (
-            f"；图谱 {graph_stats['nodes']} 节点 / {graph_stats['edges']} 边"
-            f"，社区 {len(analysis.communities)} 个"
+                message += t("pipeline.summary.serial")
+        message += t(
+            "pipeline.summary.graph",
+            nodes=graph_stats["nodes"],
+            edges=graph_stats["edges"],
+            communities=len(analysis.communities),
         )
         rate = graph_stats.get("resolvedCallRate")
         if isinstance(rate, float):
-            message += f"，调用解析率 {rate:.0%}"
+            message += t("pipeline.summary.resolvedRate", rate=f"{rate:.0%}")
         if analysis.cycles:
-            message += f"，发现 {len(analysis.cycles)} 个 import 环"
+            message += t("pipeline.summary.cycles", count=len(analysis.cycles))
         if result.truncated:
-            message += f"，因 {result.truncated_reason} 截断"
+            message += t("pipeline.summary.truncated", reason=result.truncated_reason)
         if summary:
-            top = "、".join(f"{reason} {n}" for reason, n in summary.most_common(_SKIP_TOP_N))
-            message += f"；跳过 {len(result.skipped)} 项（{top}）"
+            separator = t("pipeline.summary.separator")
+            top = separator.join(f"{reason} {n}" for reason, n in summary.most_common(_SKIP_TOP_N))
+            message += t("pipeline.summary.skipped", count=len(result.skipped), top=top)
         meta.message = message
         store.save_repo_meta(meta)
         store.set_meta(

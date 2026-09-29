@@ -184,12 +184,12 @@ describe("DirTreeView 目录树", () => {
 
     const src = row("src");
     expect(src.textContent).toContain("src");
-    expect(within(src).getByTestId("dir-row-loc").textContent).toBe("200 行");
-    expect(within(src).getByTestId("dir-row-files").textContent).toBe("3 文件");
-    expect(within(src).getByTestId("dir-row-symbols").textContent).toBe("7 符号");
-    expect(within(src).getByTestId("dir-row-errors").textContent).toBe("1 错误");
+    expect(within(src).getByTestId("dir-row-loc").textContent).toBe("200 lines");
+    expect(within(src).getByTestId("dir-row-files").textContent).toBe("3 files");
+    expect(within(src).getByTestId("dir-row-symbols").textContent).toBe("7 symbols");
+    expect(within(src).getByTestId("dir-row-errors").textContent).toBe("1 error");
 
-    expect(screen.getByTestId("dir-tree-total").textContent).toContain("4 文件");
+    expect(screen.getByTestId("dir-tree-total").textContent).toContain("4 files");
   });
 
   test("折叠/展开目录：展开 src 后出现子行", async () => {
@@ -216,7 +216,7 @@ describe("DirTreeView 目录树", () => {
     fireEvent.click(within(row("src")).getByTestId("dir-row-toggle"));
     await waitFor(() => expect(rowOrNull("src/api")).toBeTruthy());
 
-    expect(row("src/api").textContent).toContain("未展开");
+    expect(row("src/api").textContent).toContain("collapsed");
     fireEvent.click(within(row("src/api")).getByTestId("dir-row-toggle"));
 
     await waitFor(() => expect(rowOrNull("src/api/client.ts")).toBeTruthy());
@@ -336,7 +336,7 @@ describe("DirTreeView Treemap", () => {
     renderView();
 
     await waitFor(() => expect(screen.getByTestId("dir-tree-indexing")).toBeTruthy());
-    expect(screen.getByTestId("dir-tree-indexing").textContent).toContain("索引完成后");
+    expect(screen.getByTestId("dir-tree-indexing").textContent).toContain("indexing finishes");
     // 关键：一次 /tree 都不该发（此前会拿到 409/410 并被无限期缓存）
     expect(calls.some((url) => url.includes("/tree"))).toBe(false);
     expect(screen.queryByTestId("dir-tree-error")).toBeNull();
@@ -377,7 +377,7 @@ describe("DirTreeView 语言分布条", () => {
     renderView();
 
     await waitFor(() => expect(screen.getAllByTestId("lang-legend-item")).toHaveLength(3));
-    expect(screen.getByTestId("lang-bar-total").textContent).toBe("182 行");
+    expect(screen.getByTestId("lang-bar-total").textContent).toBe("182 lines");
     expect(screen.getByTestId("lang-mode-loc").getAttribute("aria-pressed")).toBe("true");
 
     const first = screen.getAllByTestId("lang-legend-item")[0];
@@ -385,7 +385,7 @@ describe("DirTreeView 语言分布条", () => {
     expect(first.getAttribute("data-value")).toBe("90");
 
     fireEvent.click(screen.getByTestId("lang-mode-files"));
-    expect(screen.getByTestId("lang-bar-total").textContent).toBe("3 个文件");
+    expect(screen.getByTestId("lang-bar-total").textContent).toBe("3 files");
     expect(screen.getByTestId("lang-mode-files").getAttribute("aria-pressed")).toBe("true");
   });
 });

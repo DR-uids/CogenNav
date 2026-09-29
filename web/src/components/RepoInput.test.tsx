@@ -86,7 +86,9 @@ describe("RepoInput", () => {
     renderInput();
     fireEvent.click(screen.getByTestId("repo-submit"));
 
-    expect(screen.getByTestId("repo-input-error").textContent).toContain("请先填写");
+    expect(screen.getByTestId("repo-input-error").textContent).toContain(
+      "Enter a repository URL",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -103,7 +105,7 @@ describe("RepoInput", () => {
 
     const button = await screen.findByTestId("repo-submit");
     expect((button as HTMLButtonElement).disabled).toBe(true);
-    expect(button.textContent).toContain("提交中");
+    expect(button.textContent).toContain("Submitting");
     expect((screen.getByTestId("repo-target-input") as HTMLInputElement).disabled).toBe(true);
 
     release(jsonRes({ repoId: "r", jobId: "j" }, 201));

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { deleteRepo, listRepos, type RepoSummary } from "../api/client";
+import { useT } from "../i18n";
 import { useReindexRepo } from "../lib/reindex";
 import { useUi } from "../stores/ui";
 import { stateLabel } from "./JobProgress";
@@ -50,6 +51,7 @@ function StateBadge({ state }: { state: string }) {
 
 /** 已索引仓库列表：拉 GET /api/repos，点击选中写 store.repoId，可删除后刷新。 */
 export function RepoList() {
+  const t = useT();
   const queryClient = useQueryClient();
   const repoId = useUi((s) => s.repoId);
   const setRepoId = useUi((s) => s.setRepoId);
@@ -74,7 +76,7 @@ export function RepoList() {
   if (isLoading) {
     return (
       <p data-testid="repo-loading" className="p-3 text-[11px] text-zinc-500">
-        正在加载仓库列表…
+        {t("repoList.loading")}
       </p>
     );
   }
@@ -85,7 +87,7 @@ export function RepoList() {
         data-testid="repo-list-error"
         className="m-3 rounded border border-rose-900/60 bg-rose-950/30 p-2 text-[11px] break-all text-rose-300"
       >
-        {error instanceof Error ? error.message : "仓库列表加载失败"}
+        {error instanceof Error ? error.message : t("repoList.loadFailed")}
       </p>
     );
   }
@@ -96,7 +98,7 @@ export function RepoList() {
         data-testid="repo-empty"
         className="m-3 rounded border border-dashed border-zinc-800 p-3 text-[11px] leading-relaxed text-zinc-600"
       >
-        还没有索引任何仓库。
+        {t("repoList.empty")}
       </p>
     );
   }
@@ -105,12 +107,12 @@ export function RepoList() {
     <div className="p-3">
       {removal.error && (
         <p data-testid="repo-delete-error" className="mb-2 text-[11px] break-all text-rose-300">
-          {removal.error instanceof Error ? removal.error.message : "删除失败"}
+          {removal.error instanceof Error ? removal.error.message : t("repoList.deleteFailed")}
         </p>
       )}
       {reindex.error && (
         <p data-testid="repo-reindex-error" className="mb-2 text-[11px] break-all text-rose-300">
-          {reindex.error instanceof Error ? reindex.error.message : "重新索引失败"}
+          {reindex.error instanceof Error ? reindex.error.message : t("repoList.reindexFailed")}
         </p>
       )}
       <ul className="space-y-1.5">
@@ -138,8 +140,10 @@ export function RepoList() {
                   <StateBadge state={repo.state} />
                 </span>
                 <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-500">
-                  <span data-testid="repo-file-count">{repo.fileCount} 文件</span>
-                  <span>{repo.loc} 行</span>
+                  <span data-testid="repo-file-count">
+                    {t("repoList.fileCount", { count: repo.fileCount })}
+                  </span>
+                  <span>{t("repoList.lineCount", { count: repo.loc })}</span>
                 </span>
                 {langs.length > 0 && (
                   <span className="mt-1 flex flex-wrap gap-1">
@@ -158,23 +162,23 @@ export function RepoList() {
               <button
                 type="button"
                 data-testid={`repo-reindex-${repo.repoId}`}
-                aria-label={`重新索引仓库 ${name}`}
-                title="用同一个地址再跑一次索引（快照被清理过时会重新克隆）"
+                aria-label={t("repoList.reindexAria", { name })}
+                title={t("repoList.reindexTitle")}
                 disabled={reindex.isPending || repo.state === "queued" || repo.state === "running"}
                 onClick={() => reindex.mutate({ target: repo.target, ref: repo.ref })}
                 className="shrink-0 border-l border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                重新索引
+                {t("repoList.reindex")}
               </button>
               <button
                 type="button"
                 data-testid={`repo-delete-${repo.repoId}`}
-                aria-label={`删除仓库 ${name}`}
+                aria-label={t("repoList.deleteAria", { name })}
                 disabled={removal.isPending}
                 onClick={() => removal.mutate(repo.repoId)}
                 className="shrink-0 border-l border-zinc-800 px-2 text-xs text-zinc-500 transition-colors hover:bg-rose-950/40 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                删除
+                {t("repoList.delete")}
               </button>
             </li>
           );

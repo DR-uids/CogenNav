@@ -129,7 +129,7 @@ describe("subscribeJobEvents", () => {
     subscribeJobEvents("job-1", { onError }, factory);
 
     created[0].emit("error", "");
-    expect(onError).toHaveBeenCalledWith("索引任务连接中断");
+    expect(onError).toHaveBeenCalledWith("Indexing task connection lost");
   });
 
   test("非法 JSON 不抛错也不回调", () => {

@@ -1,6 +1,7 @@
 /** 目录树的纯计算：拉平成行、找祖先链、语言分布汇总。 */
 
 import type { TreeNode } from "../api/client";
+import { t } from "../i18n";
 
 /** 扁平化之后的一行。 */
 export type DirRow = {
@@ -79,7 +80,7 @@ export type LanguageStat = {
 export function languageSummary(files: readonly TreeNode[]): LanguageStat[] {
   const map = new Map<string, LanguageStat>();
   for (const file of files) {
-    const language = file.language?.trim() ? file.language : "其它";
+    const language = file.language?.trim() ? file.language : t("language.other");
     const stat = map.get(language) ?? { language, files: 0, loc: 0 };
     stat.files += 1;
     stat.loc += file.loc;

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import App from "./App";
+import { t } from "./i18n";
 import { VIEWS } from "./views/registry";
 
 const HEALTH = {
@@ -33,16 +34,16 @@ describe("App 骨架", () => {
   test("渲染四个视图 Tab 与默认视图", () => {
     renderApp();
     for (const view of VIEWS) {
-      expect(screen.getByRole("tab", { name: new RegExp(view.label) })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: new RegExp(t(view.labelKey)) })).toBeTruthy();
     }
     expect(screen.getByTestId("view-tree")).toBeTruthy();
   });
 
   test("切换 Tab 后展示对应视图面板", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("tab", { name: /CST 语法树/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /CST syntax tree/ }));
     expect(screen.getByTestId("view-cst")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: /知识图谱/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Knowledge graph/ }));
     expect(screen.getByTestId("view-graph")).toBeTruthy();
   });
 
@@ -50,7 +51,7 @@ describe("App 骨架", () => {
     renderApp();
     const pill = await screen.findByTestId("health-ok");
     expect(pill.textContent).toContain("v0.1.0");
-    expect(pill.textContent).toContain("未配置");
+    expect(pill.textContent).toContain("LLM not configured");
   });
 
   test("后端不可用时给出明确提示", async () => {

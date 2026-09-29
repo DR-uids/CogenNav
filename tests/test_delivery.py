@@ -111,9 +111,14 @@ def test_makefile_targets_exist() -> None:
 
 
 def test_readme_documents_mcp_and_safety() -> None:
-    text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    """README 拆成英文（README.md）与中文（README.zh-CN.md）两份后，各查各的。"""
+    english = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    for needle in ("cogen mcp", "MCP", "Known pitfalls", "never runs it"):
+        assert needle in english, f"README.md 缺少说明: {needle}"
+
+    chinese = (REPO_ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
     for needle in ("cogen mcp", "MCP", "已知坑", "不执行被测代码"):
-        assert needle in text, f"README 缺少说明: {needle}"
+        assert needle in chinese, f"README.zh-CN.md 缺少说明: {needle}"
 
 
 def test_env_example_covers_llm_and_limits() -> None:

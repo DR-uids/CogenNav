@@ -6,6 +6,7 @@
  *  - 订阅点集中在这里，方便统一处理「后端 error 事件」和「连接层断开」两种情况。
  */
 
+import { t } from "../i18n";
 import type { JobPhase, JobState } from "./client";
 
 /** event: progress 的 data 结构（已归一化：数值缺失时补 0）。 */
@@ -126,7 +127,7 @@ export function subscribeJobEvents(
     const message =
       typeof payload?.message === "string" && payload.message
         ? payload.message
-        : "索引任务连接中断";
+        : t("events.connectionLost");
     handlers.onError?.(message);
     close();
   });

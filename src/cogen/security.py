@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .i18n import t, what_label
+
 ALLOWED_SCHEMES = frozenset({"http", "https", "git", "ssh"})
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
@@ -42,52 +44,56 @@ class PathEscapeError(ValueError):
     """路径解析后落在允许的根目录之外。"""
 
 
-def check_text(raw: str, *, what: str = "目标") -> str:
-    """通用文本校验：非空、无控制字符、无空白、不以 ``-`` 开头。"""
+def check_text(raw: str, *, what: str = "target") -> str:
+    """通用文本校验：非空、无控制字符、无空白、不以 ``-`` 开头。
+
+    ``what`` 是角色名（target / repoUrl / ref / path），文案按当前语言渲染。
+    """
+    label = what_label(what)
     text = (raw or "").strip()
     if not text:
-        raise UnsafeTargetError(f"{what}不能为空")
+        raise UnsafeTargetError(t("security.empty", what=label))
     if _CONTROL_CHARS.search(text):
-        raise UnsafeTargetError(f"{what}包含控制字符")
+        raise UnsafeTargetError(t("security.controlChars", what=label))
     if any(ch.isspace() for ch in text):
-        raise UnsafeTargetError(f"{what}不能包含空白字符")
+        raise UnsafeTargetError(t("security.whitespace", what=label))
     if text.startswith("-"):
         # 防参数注入：`git clone <target>` 中形如 --upload-pack=... 的目标
-        raise UnsafeTargetError(f"{what}不能以 '-' 开头")
+        raise UnsafeTargetError(t("security.leadingDash", what=label))
     if text.startswith("~"):
-        raise UnsafeTargetError(f"{what}不支持 ~ 展开，请使用绝对路径")
+        raise UnsafeTargetError(t("security.tilde", what=label))
     return text
 
 
 def check_git_url(url: str) -> str:
     """校验一个 Git 远端地址：仅允许 http/https/git/ssh 与 scp 形式。"""
-    text = check_text(url, what="仓库地址")
+    text = check_text(url, what="repoUrl")
     if "::" in text:
         # ext:: / transport:: 之类的辅助传输可以执行任意命令
-        raise UnsafeTargetError("仓库地址包含 '::'，拒绝非常规传输协议")
+        raise UnsafeTargetError(t("security.doubleColon"))
     match = _SCHEME.match(text)
     if match:
         scheme = match.group("scheme").lower()
         if scheme not in ALLOWED_SCHEMES:
-            raise UnsafeTargetError(f"不允许的协议: {scheme}://（仅支持 http/https/git/ssh）")
+            raise UnsafeTargetError(t("security.scheme", scheme=scheme))
         return text
     if _SCP_LIKE.match(text):
         return text
-    raise UnsafeTargetError("仓库地址必须是 http(s)://、git://、ssh:// 或 user@host:path 形式")
+    raise UnsafeTargetError(t("security.badUrl"))
 
 
 def check_repo_relative_path(rel: str) -> str:
     """校验来自 API 的仓库内相对路径（用于取文件、取 CST）。"""
     text = (rel or "").strip().replace("\\", "/")
     if not text:
-        raise UnsafePathError("路径不能为空")
+        raise UnsafePathError(t("security.pathEmpty"))
     if _CONTROL_CHARS.search(text):
-        raise UnsafePathError("路径包含控制字符")
+        raise UnsafePathError(t("security.pathControlChars"))
     if text.startswith("/") or _WINDOWS_DRIVE.match(text):
-        raise UnsafePathError("必须是仓库内的相对路径")
+        raise UnsafePathError(t("security.pathNotRelative"))
     parts = [p for p in text.split("/") if p not in ("", ".")]
     if any(p == ".." for p in parts):
-        raise UnsafePathError("路径不能包含 '..'")
+        raise UnsafePathError(t("security.pathDotDot"))
     return "/".join(parts)
 
 
@@ -98,7 +104,7 @@ def ensure_within(base: Path, candidate: Path) -> Path:
     if candidate_resolved == base_resolved:
         return candidate_resolved
     if base_resolved not in candidate_resolved.parents:
-        raise PathEscapeError(f"路径越界: {candidate} 不在 {base} 之内")
+        raise PathEscapeError(t("security.pathEscape", candidate=candidate, base=base))
     return candidate_resolved
 
 

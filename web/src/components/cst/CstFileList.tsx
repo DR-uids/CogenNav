@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FILE_PAGE_SIZE, listFiles, type RepoFile } from "../../api/client";
+import { useT } from "../../i18n";
 import { useUi } from "../../stores/ui";
 
 /** 搜索防抖：输入停顿后再请求，避免每个字符都打一次后端。 */
@@ -28,13 +29,15 @@ function FileRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const t = useT();
+
   return (
     <button
       type="button"
       data-testid="cst-file-item"
       data-path={file.path}
       data-selected={selected ? "true" : "false"}
-      title={file.error ? `${file.path}（${file.error}）` : file.path}
+      title={file.error ? t("cstFiles.errorTitle", { path: file.path, error: file.error }) : file.path}
       onClick={onSelect}
       className={`flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left transition-colors ${
         selected ? "bg-zinc-800" : "hover:bg-zinc-900"
@@ -45,10 +48,10 @@ function FileRow({
         <span data-testid="cst-file-language" className="rounded bg-zinc-800 px-1 text-zinc-400">
           {file.language || "unknown"}
         </span>
-        <span data-testid="cst-file-loc">{file.loc} 行</span>
+        <span data-testid="cst-file-loc">{t("unit.lines", { count: file.loc })}</span>
         {!file.parseOk && (
           <span data-testid="cst-file-parse-error" className="text-rose-400">
-            解析失败
+            {t("cstFiles.parseFailed")}
           </span>
         )}
       </span>
@@ -61,6 +64,7 @@ function FileRow({
  * 只负责「选文件」；CST 树与源码面板各自按 store 里的 selectedFile 取数。
  */
 export function CstFileList({ repoId }: { repoId: string | null }) {
+  const t = useT();
   const selectedFile = useUi((s) => s.selectedFile);
   const selectFile = useUi((s) => s.selectFile);
   const selectNode = useUi((s) => s.selectNode);
@@ -93,11 +97,13 @@ export function CstFileList({ repoId }: { repoId: string | null }) {
   const virtualItems = virtualizer.getVirtualItems();
 
   const header = useMemo(() => {
-    if (!repoId) return "未选择仓库";
-    if (isLoading) return "正在加载…";
-    if (total > files.length) return `显示 ${files.length} / 共 ${total} 个文件`;
-    return `共 ${total} 个文件`;
-  }, [repoId, isLoading, total, files.length]);
+    if (!repoId) return t("cstFiles.noRepo");
+    if (isLoading) return t("cstFiles.loadingShort");
+    if (total > files.length) {
+      return t("cstFiles.showingOfTotal", { shown: files.length, total });
+    }
+    return t("cstFiles.total", { count: total });
+  }, [repoId, isLoading, total, files.length, t]);
 
   return (
     <section
@@ -105,7 +111,7 @@ export function CstFileList({ repoId }: { repoId: string | null }) {
       className="flex w-72 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/20"
     >
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-800 px-3">
-        <h3 className="text-xs font-medium text-zinc-400">文件</h3>
+        <h3 className="text-xs font-medium text-zinc-400">{t("cstFiles.title")}</h3>
         <span data-testid="cst-file-total" className="text-[10px] text-zinc-600">
           {header}
         </span>
@@ -116,8 +122,8 @@ export function CstFileList({ repoId }: { repoId: string | null }) {
           type="search"
           data-testid="cst-file-search"
           value={rawQuery}
-          placeholder="搜索路径…"
-          aria-label="搜索文件路径"
+          placeholder={t("cstFiles.searchPlaceholder")}
+          aria-label={t("cstFiles.searchAria")}
           onChange={(event) => setRawQuery(event.target.value)}
           className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 font-mono text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
         />
@@ -125,7 +131,7 @@ export function CstFileList({ repoId }: { repoId: string | null }) {
 
       {!repoId && (
         <p data-testid="cst-no-repo" className="m-3 text-[11px] leading-relaxed text-zinc-500">
-          请先在左侧「仓库」列表中选择一个仓库，这里会列出它的文件。
+          {t("cstFiles.pickRepo")}
         </p>
       )}
 
@@ -134,19 +140,19 @@ export function CstFileList({ repoId }: { repoId: string | null }) {
           data-testid="cst-files-error"
           className="m-3 rounded border border-rose-900/60 bg-rose-950/30 p-2 text-[11px] break-all text-rose-300"
         >
-          {error instanceof Error ? error.message : "文件列表加载失败"}
+          {error instanceof Error ? error.message : t("cstFiles.loadFailed")}
         </p>
       )}
 
       {repoId && !isError && !isLoading && files.length === 0 && (
         <p data-testid="cst-files-empty" className="m-3 text-[11px] leading-relaxed text-zinc-500">
-          {query ? `没有匹配「${query}」的文件。` : "该仓库没有可浏览的文件。"}
+          {query ? t("cstFiles.noMatch", { query }) : t("cstFiles.empty")}
         </p>
       )}
 
       {repoId && isLoading && files.length === 0 && (
         <p data-testid="cst-files-loading" className="m-3 text-[11px] text-zinc-500">
-          正在加载文件列表…
+          {t("cstFiles.loading")}
         </p>
       )}
 
@@ -183,7 +189,7 @@ export function CstFileList({ repoId }: { repoId: string | null }) {
           onClick={() => setLimit((prev) => prev + FILE_PAGE_SIZE)}
           className="shrink-0 border-t border-zinc-800 px-3 py-1.5 text-[11px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
         >
-          加载更多（剩余 {total - files.length} 个）
+          {t("cstFiles.loadMore", { remaining: total - files.length })}
         </button>
       )}
     </section>

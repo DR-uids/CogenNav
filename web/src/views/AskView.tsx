@@ -21,6 +21,7 @@ import {
   type AskCitation,
   type AskStream,
 } from "../api/ask";
+import { useT, type MessageKey } from "../i18n";
 import { readDeepLinkParam, writeDeepLink } from "../lib/deepLink";
 import {
   applyAskEvent,
@@ -37,12 +38,12 @@ import {
 } from "../lib/askStream";
 import { useUi } from "../stores/ui";
 
-/** 快捷问题：覆盖「入口 / 调用方 / 影响面 / 结构」四类常见问法。 */
-const QUICK_QUESTIONS: readonly string[] = [
-  "这个仓库的入口是什么？",
-  "谁调用了 Engine.run？",
-  "改 fmt 会影响哪些文件？",
-  "这个仓库有哪些核心抽象（god node）？",
+/** 快捷问题：覆盖「入口 / 调用方 / 影响面 / 结构」四类常见问法（存文案键，切语言时跟着变）。 */
+const QUICK_QUESTION_KEYS: readonly MessageKey[] = [
+  "ask.quick.entry",
+  "ask.quick.whoCalls",
+  "ask.quick.impact",
+  "ask.quick.godNodes",
 ];
 
 const CHIP_CLASS =
@@ -76,6 +77,7 @@ function CitationChip({
 
 /** 单条回答的工具轨迹：默认折叠，点开后看名称 / 参数 JSON / 结果摘要。 */
 function ToolTrace({ tools }: { tools: AskToolTrace[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -87,7 +89,7 @@ function ToolTrace({ tools }: { tools: AskToolTrace[] }) {
         onClick={() => setOpen((prev) => !prev)}
         className="rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
       >
-        {tools.length} 次工具调用 {open ? "▾" : "▸"}
+        {t("unit.toolCalls", { count: tools.length })} {open ? "▾" : "▸"}
       </button>
       {open && (
         <ul data-testid="ask-tool-list" className="mt-1 space-y-1">
@@ -108,7 +110,7 @@ function ToolTrace({ tools }: { tools: AskToolTrace[] }) {
                 {JSON.stringify(tool.arguments)}
               </pre>
               <p data-testid="ask-tool-summary" className="mt-1 text-[10px] text-zinc-400">
-                {tool.summary ?? "（等待工具返回…）"}
+                {tool.summary ?? t("ask.toolPending")}
               </p>
             </li>
           ))}
@@ -126,6 +128,7 @@ function MessageRow({
   message: ChatMessage;
   onOpenCitation: (id: string) => void;
 }) {
+  const t = useT();
   const isUser = message.role === "user";
 
   return (
@@ -140,7 +143,9 @@ function MessageRow({
           isUser ? "border-sky-900/60 bg-sky-950/30" : "border-zinc-800 bg-zinc-900/40"
         }`}
       >
-        <p className="mb-1 text-[10px] tracking-wide text-zinc-500">{isUser ? "你" : "助手"}</p>
+        <p className="mb-1 text-[10px] tracking-wide text-zinc-500">
+          {isUser ? t("ask.role.user") : t("ask.role.assistant")}
+        </p>
 
         {message.content ? (
           <p
@@ -152,13 +157,13 @@ function MessageRow({
           </p>
         ) : message.status === "streaming" ? (
           <p data-testid="ask-message-content" className="text-[12px] text-zinc-500">
-            正在检索图谱…
+            {t("ask.retrieving")}
           </p>
         ) : null}
 
         {message.status === "stopped" && (
           <p data-testid="ask-message-stopped" className="mt-1 text-[10px] text-zinc-500">
-            已停止生成（上面的文字是已经收到的部分）。
+            {t("ask.stopped")}
           </p>
         )}
 
@@ -186,6 +191,7 @@ function MessageRow({
 }
 
 export function AskView() {
+  const t = useT();
   const repoId = useUi((s) => s.repoId);
   const selectNode = useUi((s) => s.selectNode);
   const setActiveView = useUi((s) => s.setActiveView);
@@ -295,14 +301,14 @@ export function AskView() {
       {/* 左栏：AI 状态 / 快捷问题 / 社区命名与架构摘要 */}
       <aside className="flex w-72 shrink-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-900/20">
         <section data-testid="ask-status" className="border-b border-zinc-800 px-3 py-2">
-          <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">AI 状态</h3>
+          <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">{t("ask.status.title")}</h3>
           {!repoId ? (
             <p data-testid="ask-no-repo" className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-              先在左侧「仓库」列表中选择一个仓库，才能对它的图谱提问。
+              {t("ask.status.noRepo")}
             </p>
           ) : aiStatusQuery.isLoading ? (
             <p data-testid="ask-status-loading" className="mt-1 text-[11px] text-zinc-500">
-              正在读取 LLM 状态…
+              {t("ask.status.loading")}
             </p>
           ) : aiStatusQuery.isError ? (
             <p data-testid="ask-status-error" className="mt-1 text-[11px] text-rose-300">
@@ -311,23 +317,23 @@ export function AskView() {
           ) : status ? (
             <dl className="mt-1 space-y-1 text-[10px] text-zinc-400">
               <div className="flex items-center gap-1">
-                <dt className="text-zinc-500">模型</dt>
+                <dt className="text-zinc-500">{t("ask.status.model")}</dt>
                 <dd data-testid="ask-status-model" className="truncate font-mono text-zinc-200">
-                  {status.model || "（未设置）"}
+                  {status.model || t("ask.status.modelUnset")}
                 </dd>
               </div>
               <div className="flex items-center gap-1">
-                <dt className="text-zinc-500">RAG</dt>
+                <dt className="text-zinc-500">{t("ask.status.rag")}</dt>
                 <dd data-testid="ask-status-rag" className="font-mono text-zinc-300">
                   {status.rag}
                 </dd>
-                <dt className="text-zinc-500">脱敏</dt>
-                <dd>{status.redact ? "开" : "关"}</dd>
+                <dt className="text-zinc-500">{t("ask.status.redact")}</dt>
+                <dd>{status.redact ? t("ask.status.on") : t("ask.status.off")}</dd>
               </div>
               <div>
-                <dt className="text-zinc-500">只读工具 {status.tools.length} 个</dt>
+                <dt className="text-zinc-500">{t("ask.status.tools", { count: status.tools.length })}</dt>
                 <dd data-testid="ask-status-tools" className="mt-0.5 font-mono leading-4 break-all text-zinc-500">
-                  {status.tools.join(" / ") || "（无）"}
+                  {status.tools.join(" / ") || t("ask.status.toolsNone")}
                 </dd>
               </div>
             </dl>
@@ -339,32 +345,32 @@ export function AskView() {
             data-testid="ask-llm-warning"
             className="border-b border-amber-900/50 bg-amber-950/20 px-3 py-2 text-[11px] leading-relaxed text-amber-300"
           >
-            未配置 LLM（环境变量 COGEN_LLM_API_KEY 为空）：问答不可用，输入框已禁用，已有的历史消息仍可阅读；目录树、CST、知识图谱等其余功能不受影响。社区命名与架构摘要仍可用，会用确定性启发式生成。
+            {t("ask.llmWarning")}
           </p>
         )}
 
         <section data-testid="ask-quick" className="border-b border-zinc-800 px-3 py-2">
-          <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">快捷问题</h3>
+          <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">{t("ask.quick.title")}</h3>
           <div className="mt-1 flex flex-col gap-1">
-            {QUICK_QUESTIONS.map((question) => (
+            {QUICK_QUESTION_KEYS.map((questionKey) => (
               <button
-                key={question}
+                key={questionKey}
                 type="button"
                 data-testid="ask-quick-item"
                 disabled={!canAsk}
-                onClick={() => send(question)}
+                onClick={() => send(t(questionKey))}
                 className="rounded border border-zinc-800 px-2 py-1 text-left text-[11px] text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {question}
+                {t(questionKey)}
               </button>
             ))}
           </div>
         </section>
 
         <section data-testid="ask-community-panel" className="px-3 py-2">
-          <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">社区命名 / 架构摘要</h3>
+          <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">{t("ask.community.title")}</h3>
           <p className="mt-1 text-[10px] leading-relaxed text-zinc-600">
-            社区名会写回图谱，图例与符号卡片随之更新；未配置 LLM 时后端用启发式命名（结果里会标明 namedBy）。
+            {t("ask.community.hint")}
           </p>
 
           <div className="mt-2 flex flex-wrap gap-1">
@@ -375,7 +381,7 @@ export function AskView() {
               onClick={() => naming.mutate(false)}
               className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
             >
-              {naming.isPending ? "命名中…" : "为社区命名"}
+              {naming.isPending ? t("ask.community.naming") : t("ask.community.name")}
             </button>
             <button
               type="button"
@@ -384,7 +390,7 @@ export function AskView() {
               onClick={() => naming.mutate(true)}
               className="rounded border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 disabled:opacity-40"
             >
-              强制重新命名
+              {t("ask.community.force")}
             </button>
           </div>
 
@@ -397,7 +403,12 @@ export function AskView() {
           {naming.data && (
             <div data-testid="ask-naming-result" className="mt-2 text-[10px] text-zinc-400">
               <p data-testid="ask-naming-summary">
-                更新 {naming.data.updated} 个社区 · {naming.data.llm ? "由 LLM 命名" : "由启发式命名"}
+                {t("ask.community.updated", {
+                  count: naming.data.updated,
+                  source: naming.data.llm
+                    ? t("ask.community.byLlm")
+                    : t("ask.community.byHeuristic"),
+                })}
               </p>
               {naming.data.errors.length > 0 && (
                 <ul data-testid="ask-naming-errors" className="mt-1 list-disc pl-4 text-amber-400">
@@ -425,7 +436,7 @@ export function AskView() {
                             : "bg-zinc-800 text-zinc-400"
                         }`}
                       >
-                        {community.namedBy ?? "未知"}
+                        {community.namedBy ?? t("ask.community.unknown")}
                       </span>
                     </div>
                     {community.summary && <p className="mt-0.5 text-zinc-500">{community.summary}</p>}
@@ -442,7 +453,7 @@ export function AskView() {
             onClick={() => summary.mutate()}
             className="mt-3 rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
           >
-            {summary.isPending ? "生成中…" : "生成架构摘要"}
+            {summary.isPending ? t("ask.summary.generating") : t("ask.summary.button")}
           </button>
 
           {summary.isError && (
@@ -454,7 +465,12 @@ export function AskView() {
           {summary.data && (
             <div data-testid="ask-summary-result" className="mt-2 text-[10px]">
               <p data-testid="ask-summary-by" className="text-zinc-500">
-                来源：{summary.data.generatedBy === "llm" ? "LLM" : "启发式（未配置或调用失败）"}
+                {t("ask.summary.source", {
+                  source:
+                    summary.data.generatedBy === "llm"
+                      ? "LLM"
+                      : t("ask.summary.sourceHeuristic"),
+                })}
               </p>
               {summary.data.error && (
                 <p data-testid="ask-summary-fallback" className="mt-0.5 text-amber-400">
@@ -478,12 +494,12 @@ export function AskView() {
         <div data-testid="ask-messages" className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-3">
           {!repoId && (
             <p data-testid="ask-empty" className="text-xs leading-relaxed text-zinc-500">
-              选一个仓库后，就可以问「谁调用了 X」「改 X 会影响哪些文件」这类问题；答案里的符号可以直接点开图谱。
+              {t("ask.emptyNoRepo")}
             </p>
           )}
           {repoId && conversation.messages.length === 0 && (
             <p data-testid="ask-empty" className="text-xs leading-relaxed text-zinc-500">
-              还没有提问。可以从左侧快捷问题开始，或直接在下面输入。回答会带出它查过的工具与可跳转的符号引用。
+              {t("ask.empty")}
             </p>
           )}
           {conversation.messages.map((message) => (
@@ -504,9 +520,7 @@ export function AskView() {
             disabled={inputDisabled}
             rows={3}
             placeholder={
-              configured
-                ? "问点什么，例如「谁调用了 Engine.run？」（Enter 发送，Shift+Enter 换行）"
-                : "未配置 LLM，问答输入已禁用"
+              configured ? t("ask.placeholder") : t("ask.placeholderDisabled")
             }
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -525,7 +539,7 @@ export function AskView() {
               disabled={!canAsk || !draft.trim()}
               className="rounded border border-zinc-700 bg-zinc-900 px-3 py-1 text-[11px] text-zinc-100 hover:bg-zinc-800 disabled:opacity-40"
             >
-              {busy ? "生成中…" : "发送"}
+              {busy ? t("ask.generating") : t("ask.send")}
             </button>
             {busy && (
               <button
@@ -534,12 +548,10 @@ export function AskView() {
                 onClick={stop}
                 className="rounded border border-rose-900 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-950/40"
               >
-                停止
+                {t("ask.stop")}
               </button>
             )}
-            <span className="text-[10px] text-zinc-600">
-              Enter 发送 · Shift+Enter 换行 · 只读工具查询，不会改动仓库
-            </span>
+            <span className="text-[10px] text-zinc-600">{t("ask.inputHint")}</span>
           </div>
         </form>
       </div>
@@ -548,11 +560,14 @@ export function AskView() {
       <aside className="flex w-80 shrink-0 flex-col overflow-auto border-l border-zinc-800 bg-zinc-900/30">
         <section data-testid="ask-citations" className="border-b border-zinc-800 p-3">
           <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">
-            引用 <span data-testid="ask-citation-count" className="text-zinc-600">{citations.length}</span>
+            {t("ask.citations")}{" "}
+            <span data-testid="ask-citation-count" className="text-zinc-600">
+              {citations.length}
+            </span>
           </h3>
           {citations.length === 0 ? (
             <p data-testid="ask-citation-empty" className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-              回答里引用到的符号会列在这里，点一下跳到图谱并聚焦。
+              {t("ask.citationsEmpty")}
             </p>
           ) : (
             <ul className="mt-1 flex flex-wrap gap-1">
@@ -567,11 +582,14 @@ export function AskView() {
 
         <section data-testid="ask-traces" className="p-3">
           <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">
-            工具轨迹 <span data-testid="ask-trace-count" className="text-zinc-600">{traces.length}</span>
+            {t("ask.traces")}{" "}
+            <span data-testid="ask-trace-count" className="text-zinc-600">
+              {traces.length}
+            </span>
           </h3>
           {traces.length === 0 ? (
             <p data-testid="ask-trace-empty" className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-              助手调用过的只读工具（图谱查询、符号搜索、源码片段等）会按顺序列在这里。
+              {t("ask.tracesEmpty")}
             </p>
           ) : (
             <ol data-testid="ask-trace-list" className="mt-1 space-y-1">
@@ -584,10 +602,12 @@ export function AskView() {
                 >
                   <p className="font-mono text-[10px] text-zinc-300">{trace.name}</p>
                   <p className="mt-0.5 text-[10px] text-zinc-500">
-                    {trace.summary ?? "（等待工具返回…）"}
+                    {trace.summary ?? t("ask.toolPending")}
                   </p>
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-[10px] text-zinc-500">参数</summary>
+                    <summary className="cursor-pointer text-[10px] text-zinc-500">
+                      {t("ask.traceParams")}
+                    </summary>
                     <pre className="mt-0.5 overflow-auto font-mono text-[10px] text-zinc-500">
                       {JSON.stringify(trace.arguments)}
                     </pre>

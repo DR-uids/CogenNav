@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 from ..config import Settings
+from ..i18n import t
 from ..security import UnsafeTargetError, check_git_url, check_repo_relative_path, check_text
 
 GITHUB_HOST = "github.com"
@@ -58,10 +59,10 @@ def resolve_target(raw: str, *, ref: str | None = None, subdir: str | None = Non
     """解析目标。本地路径必须已存在；其余按 Git 地址处理。"""
     text = (raw or "").strip()
     if not text:
-        raise UnsafeTargetError("仓库地址或本地路径不能为空")
+        raise UnsafeTargetError(t("resolve.targetEmpty"))
     if "::" in text:
         # ext:: / transport:: 之类的辅助传输可以执行任意命令，必须在解析阶段就拒掉
-        raise UnsafeTargetError("目标包含 '::'，拒绝非常规 Git 传输协议")
+        raise UnsafeTargetError(t("resolve.doubleColon"))
 
     clean_ref = check_text(ref, what="ref") if ref else None
     clean_subdir = check_repo_relative_path(subdir) if subdir else None
@@ -69,7 +70,7 @@ def resolve_target(raw: str, *, ref: str | None = None, subdir: str | None = Non
     if _looks_like_path(text):
         candidate = Path(text).expanduser()
         if not candidate.is_dir():
-            raise UnsafeTargetError(f"本地路径不存在或不是目录: {candidate}")
+            raise UnsafeTargetError(t("resolve.localMissing", path=candidate))
         resolved = candidate.resolve()
         return Target(
             raw=text,
@@ -121,10 +122,7 @@ def _resolve_git(text: str, ref: str | None, subdir: str | None) -> Target:
         else:
             local_repo = _OWNER_REPO.match(text)
             if not local_repo:
-                raise UnsafeTargetError(
-                    "无法识别的目标：请提供已存在的本地目录、"
-                    "https://github.com/owner/repo 或 owner/repo"
-                )
+                raise UnsafeTargetError(t("resolve.unrecognised"))
             host = GITHUB_HOST
             owner = local_repo.group("owner")
             name = local_repo.group("name")

@@ -22,21 +22,22 @@ import { GraphSearch } from "../components/graph/GraphSearch";
 import { ImpactPanel } from "../components/graph/ImpactPanel";
 import { SymbolCard } from "../components/graph/SymbolCard";
 import { GraphCanvas, type DagDirection, type GraphMode } from "../components/graph/renderers";
+import { useT, type MessageKey } from "../i18n";
 import { readDeepLinkParam, writeDeepLink } from "../lib/deepLink";
 import { confidenceWhitelist, toggleChecked, whitelist } from "../lib/graphFilters";
 import { computeHops, focusOptionFromSearch, focusOptions, pickDefaultFocus, type FocusOption } from "../lib/graphSelection";
 import { useUi } from "../stores/ui";
 
-const MODE_LABEL: Record<GraphMode, string> = {
-  force: "力导向",
-  dag: "分层 DAG",
-  impact: "影响面",
+const MODE_KEYS: Record<GraphMode, MessageKey> = {
+  force: "graphMode.force",
+  dag: "graphMode.dag",
+  impact: "graphMode.impact",
 };
 
-const DIRECTION_LABEL: Record<DagDirection, string> = {
-  both: "双向",
-  out: "下游",
-  in: "上游",
+const DIRECTION_KEYS: Record<DagDirection, MessageKey> = {
+  both: "graphDirection.both",
+  out: "graphDirection.out",
+  in: "graphDirection.in",
 };
 
 /** 深链 ?mode=；非法值退回默认的力导向。 */
@@ -56,6 +57,7 @@ function readMode(): GraphMode {
  * 真实实现（sigma / react-flow）是 lazy import，jsdom 里根本不会被加载。
  */
 export function GraphView() {
+  const t = useT();
   const repoId = useUi((s) => s.repoId);
   const selectFile = useUi((s) => s.selectFile);
   const selectNode = useUi((s) => s.selectNode);
@@ -276,7 +278,7 @@ export function GraphView() {
           notice={
             mode === "force"
               ? undefined
-              : "分层 DAG / 影响面走 /graph/neighbors 与 /graph/impact：只应用「关系」过滤，类型与置信度对力导向全图生效。"
+              : t("graphView.notice")
           }
         />
         <GraphLegend
@@ -289,8 +291,8 @@ export function GraphView() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800 px-3 py-2">
-          <div className="flex items-center gap-1" role="group" aria-label="图谱模式">
-            {(Object.keys(MODE_LABEL) as GraphMode[]).map((item) => (
+          <div className="flex items-center gap-1" role="group" aria-label={t("graphView.modeAria")}>
+            {(Object.keys(MODE_KEYS) as GraphMode[]).map((item) => (
               <button
                 key={item}
                 type="button"
@@ -303,15 +305,15 @@ export function GraphView() {
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
                 }`}
               >
-                {MODE_LABEL[item]}
+                {t(MODE_KEYS[item])}
               </button>
             ))}
           </div>
 
           {mode === "dag" && (
             <>
-              <div className="flex items-center gap-1" role="group" aria-label="邻域方向">
-                {(Object.keys(DIRECTION_LABEL) as DagDirection[]).map((item) => (
+              <div className="flex items-center gap-1" role="group" aria-label={t("graphView.directionAria")}>
+                {(Object.keys(DIRECTION_KEYS) as DagDirection[]).map((item) => (
                   <button
                     key={item}
                     type="button"
@@ -324,20 +326,20 @@ export function GraphView() {
                         : "text-zinc-400 hover:bg-zinc-900"
                     }`}
                   >
-                    {DIRECTION_LABEL[item]}
+                    {t(DIRECTION_KEYS[item])}
                   </button>
                 ))}
               </div>
 
               <label className="flex items-center gap-1 text-[10px] text-zinc-500">
-                焦点节点
+                {t("graphView.focusNode")}
                 <select
                   data-testid="graph-focus-select"
                   value={focus ?? ""}
                   onChange={(event) => setFocus(event.target.value || null)}
                   className="max-w-56 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200 focus:border-zinc-600 focus:outline-none"
                 >
-                  <option value="">（未选择）</option>
+                  <option value="">{t("graphView.noSelection")}</option>
                   {options.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.name} · {option.kind}
@@ -353,11 +355,15 @@ export function GraphView() {
 
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-800 px-3 py-1 text-[10px] text-zinc-500">
           <span data-testid="graph-stats">
-            {MODE_LABEL[mode]} · 节点 {activeNodes.length} / 边 {activeEdges.length}
+            {t("graphView.stats", {
+              mode: t(MODE_KEYS[mode]),
+              nodes: t("filter.nodes", { count: activeNodes.length }),
+              edges: t("filter.edges", { count: activeEdges.length }),
+            })}
           </span>
           {focus && (
             <span data-testid="graph-focus" className="flex items-center gap-1">
-              焦点：
+              {t("graphView.focus")}
               <span className="font-mono text-zinc-300">{focusOption?.name ?? focus}</span>
               {mode === "force" && (
                 <button
@@ -369,19 +375,19 @@ export function GraphView() {
                   }}
                   className="rounded border border-zinc-800 px-1 hover:bg-zinc-900 hover:text-zinc-200"
                 >
-                  回到全局
+                  {t("graphView.backToGlobal")}
                 </button>
               )}
             </span>
           )}
           {activeQuery.isFetching && !loading && (
             <span data-testid="graph-refreshing" className="text-sky-400">
-              更新中…
+              {t("graphView.refreshing")}
             </span>
           )}
-          {mode === "dag" && <span>邻居深度 3</span>}
-          {mode === "impact" && <span>下游深度 3</span>}
-          {mode === "force" && <span>上限 {limit}</span>}
+          {mode === "dag" && <span>{t("graphView.neighborDepth")}</span>}
+          {mode === "impact" && <span>{t("graphView.impactDepth")}</span>}
+          {mode === "force" && <span>{t("graphView.limit", { limit })}</span>}
         </div>
 
         {truncated && (
@@ -389,7 +395,7 @@ export function GraphView() {
             data-testid="graph-truncated"
             className="flex shrink-0 items-center gap-2 border-b border-amber-900/50 bg-amber-950/20 px-3 py-1 text-[10px] text-amber-300"
           >
-            <span>结果已截断，仅展示前 {activeNodes.length} 个节点（共 {totalNodes} 个）。</span>
+            <span>{t("graphView.truncated", { shown: activeNodes.length, total: totalNodes })}</span>
             {mode === "force" && (
               <button
                 type="button"
@@ -397,7 +403,7 @@ export function GraphView() {
                 onClick={() => setLimit((prev) => Math.min(prev * 2, GRAPH_LIMIT_MAX))}
                 className="rounded border border-amber-800 px-1.5 hover:bg-amber-950/40"
               >
-                显示更多
+                {t("graphView.showMore")}
               </button>
             )}
           </div>
@@ -408,28 +414,26 @@ export function GraphView() {
             data-testid="graph-large-warning"
             className="shrink-0 border-b border-amber-900/40 bg-amber-950/10 px-3 py-1 text-[10px] text-amber-400"
           >
-            结果超过 {GRAPH_LARGE_NODES} 个节点，浏览器可能明显变卡；建议先收窄过滤条件，或切到分层
-            DAG 只看局部。
+            {t("graphView.largeWarning", { limit: GRAPH_LARGE_NODES })}
           </p>
         )}
 
         <div className="relative min-h-0 flex-1">
           {!repoId && (
             <p data-testid="graph-no-repo" className="m-4 text-xs leading-relaxed text-zinc-500">
-              请先在左侧「仓库」列表中选择一个仓库，这里会画出它的符号知识图谱。
+              {t("graphView.pickRepo")}
             </p>
           )}
 
           {needFocus && (
             <p data-testid="graph-need-focus" className="m-4 text-xs leading-relaxed text-zinc-500">
-              {MODE_LABEL[mode]}模式需要一个焦点符号：用上面的搜索框挑一个，或在下拉里选择
-              god node。
+              {t("graphView.needFocus", { mode: t(MODE_KEYS[mode]) })}
             </p>
           )}
 
           {enabled && !needFocus && loading && (
             <p data-testid="graph-loading" className="m-4 text-xs text-zinc-500">
-              正在加载图谱…
+              {t("graphView.loading")}
             </p>
           )}
 
@@ -438,13 +442,13 @@ export function GraphView() {
               data-testid="graph-error"
               className="m-4 rounded border border-rose-900/60 bg-rose-950/30 p-3 text-xs break-all text-rose-300"
             >
-              {activeQuery.error instanceof Error ? activeQuery.error.message : "图谱加载失败"}
+              {activeQuery.error instanceof Error ? activeQuery.error.message : t("graphView.loadFailed")}
             </p>
           )}
 
           {enabled && !needFocus && !loading && !failed && activeNodes.length === 0 && (
             <p data-testid="graph-empty" className="m-4 text-xs leading-relaxed text-zinc-500">
-              没有满足当前过滤条件的符号。可以放宽类型/关系/置信度，或先运行一次索引。
+              {t("graphView.empty")}
             </p>
           )}
 
@@ -464,7 +468,7 @@ export function GraphView() {
 
       <aside className="flex w-80 shrink-0 flex-col overflow-auto border-l border-zinc-800 bg-zinc-900/30">
         <div className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-800 px-3">
-          <h3 className="text-xs font-medium text-zinc-400">检查器</h3>
+          <h3 className="text-xs font-medium text-zinc-400">{t("graphView.inspector")}</h3>
           {selectedId && (
             <button
               type="button"
@@ -472,7 +476,7 @@ export function GraphView() {
               onClick={() => setSelectedId(null)}
               className="rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
             >
-              清除
+              {t("graphView.clear")}
             </button>
           )}
         </div>
@@ -486,7 +490,7 @@ export function GraphView() {
           />
         ) : (
           <p data-testid="graph-inspector-empty" className="p-3 text-[11px] leading-relaxed text-zinc-500">
-            点击图中的节点查看符号详情：定义位置、代码片段与出入边；边可以继续点着跳过去。
+            {t("graphView.inspectorEmpty")}
           </p>
         )}
 

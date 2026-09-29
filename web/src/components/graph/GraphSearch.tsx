@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { searchQueryOptions } from "../../api/graph";
 import type { SymbolSearchResult } from "../../api/client";
+import { useT } from "../../i18n";
 
 /** 搜索防抖：输入停顿后再请求（与文件列表同一节奏）。 */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -28,6 +29,7 @@ type GraphSearchProps = {
  * 分层 DAG / 影响面下会以它为根）。
  */
 export function GraphSearch({ repoId, onPick }: GraphSearchProps) {
+  const t = useT();
   const [raw, setRaw] = useState("");
   const keyword = raw.trim();
   const q = useDebouncedValue(keyword, SEARCH_DEBOUNCE_MS);
@@ -47,8 +49,8 @@ export function GraphSearch({ repoId, onPick }: GraphSearchProps) {
         type="search"
         data-testid="graph-search-input"
         value={raw}
-        placeholder="搜索符号（名称 / 限定名 / 路径）…"
-        aria-label="搜索符号"
+        placeholder={t("graphSearch.placeholder")}
+        aria-label={t("graphSearch.aria")}
         onChange={(event) => setRaw(event.target.value)}
         className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 font-mono text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
       />
@@ -60,26 +62,26 @@ export function GraphSearch({ repoId, onPick }: GraphSearchProps) {
         >
           {pending && (
             <p data-testid="graph-search-loading" className="px-2 py-1.5 text-[10px] text-zinc-500">
-              正在搜索…
+              {t("graphSearch.searching")}
             </p>
           )}
 
           {query.isError && (
             <p data-testid="graph-search-error" className="px-2 py-1.5 text-[10px] break-all text-rose-300">
-              {query.error instanceof Error ? query.error.message : "搜索失败"}
+              {query.error instanceof Error ? query.error.message : t("graphSearch.failed")}
             </p>
           )}
 
           {!pending && !query.isError && results.length === 0 && (
             <p data-testid="graph-search-empty" className="px-2 py-1.5 text-[10px] text-zinc-500">
-              没有匹配「{keyword}」的符号。
+              {t("graphSearch.noMatch", { query: keyword })}
             </p>
           )}
 
           {results.length > 0 && (
             <>
               <p data-testid="graph-search-total" className="border-b border-zinc-800 px-2 py-1 text-[10px] text-zinc-500">
-                命中 {total} 个，显示前 {results.length} 个
+                {t("graphSearch.hits", { total, shown: results.length })}
               </p>
               <ul>
                 {results.map((result) => (

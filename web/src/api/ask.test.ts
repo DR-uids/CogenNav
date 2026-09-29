@@ -167,11 +167,13 @@ describe("streamAsk", () => {
     expect(url).toBe(URL);
     expect(init.method).toBe("POST");
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    // 语言头让后端把错误 detail 也按界面语言返回（默认英文）
+    expect((init.headers as Record<string, string>)["Accept-Language"]).toMatch(/^en/);
     expect(JSON.parse(String(init.body))).toEqual({
       question: "谁是入口",
       history: [{ role: "user", content: "hi" }],
     });
-    expect(events).toEqual(["error:后端没有返回事件流（缺少响应体）"]);
+    expect(events).toEqual(["error:The backend returned no event stream (response body missing)"]);
   });
 
   test("单个 chunk 里多个事件按顺序回调", async () => {

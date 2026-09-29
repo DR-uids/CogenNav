@@ -6,7 +6,9 @@ import { JobProgress } from "./components/JobProgress";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { ViewTabs } from "./components/ViewTabs";
+import { t as msg, useT } from "./i18n";
 import { readDeepLinkParam, writeDeepLink } from "./lib/deepLink";
+import { DEFAULT_LOCALE, isLocale, useLocaleStore } from "./stores/locale";
 import { useUi, type ViewId } from "./stores/ui";
 import { AskView } from "./views/AskView";
 import { CstView } from "./views/CstView";
@@ -28,9 +30,12 @@ function renderView(view: ViewId) {
 }
 
 export default function App() {
+  const t = useT();
   const activeView = useUi((s) => s.activeView);
   const jobId = useUi((s) => s.jobId);
   const setJobProgress = useUi((s) => s.setJobProgress);
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
   const queryClient = useQueryClient();
 
   // 挂载时读一次深链 ?view=；之后视图切换由下面的 effect 回写（与 CstView 同一套做法）。
@@ -38,6 +43,13 @@ export default function App() {
     const view = readDeepLinkParam("view");
     if (isViewId(view)) useUi.getState().setActiveView(view);
   }, []);
+
+  // 深链 ?lang=zh：分享出去的链接直接带语言（模块加载时已读过一次，这里兜住
+  // 「store 早于 URL 就绪」的场景，例如测试里先设 URL 再挂载）。
+  useEffect(() => {
+    const fromUrl = readDeepLinkParam("lang");
+    if (isLocale(fromUrl) && fromUrl !== useLocaleStore.getState().locale) setLocale(fromUrl);
+  }, [setLocale]);
 
   const skipFirstViewWrite = useRef(true);
   useEffect(() => {
@@ -47,6 +59,21 @@ export default function App() {
     }
     writeDeepLink({ view: activeView });
   }, [activeView]);
+
+  // 语言：跟 <html lang> / 文档标题联动，并把非默认语言回写到 ?lang=，方便分享。
+  useEffect(() => {
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+    document.title = t("app.title");
+  }, [locale, t]);
+
+  const skipFirstLangWrite = useRef(true);
+  useEffect(() => {
+    if (skipFirstLangWrite.current) {
+      skipFirstLangWrite.current = false;
+      return;
+    }
+    writeDeepLink({ lang: locale === DEFAULT_LOCALE ? null : locale });
+  }, [locale]);
 
   /**
    * SSE 订阅放在 App：任务跨视图存在，切换 Tab 不该重连。
@@ -74,7 +101,7 @@ export default function App() {
 
     const subscription = subscribeJobEvents(jobId, {
       onProgress: (payload) => setJobProgress(payload),
-      onDone: () => done("done", "索引完成"),
+      onDone: () => done("done", msg("app.indexDone")),
       onError: (message) => done("error", message),
     });
 
@@ -89,7 +116,7 @@ export default function App() {
         <main className="flex min-w-0 flex-1 flex-col">
           <JobProgress />
           <ViewTabs />
-          <section className="min-h-0 flex-1 overflow-hidden" aria-label="视图内容">
+          <section className="min-h-0 flex-1 overflow-hidden" aria-label={t("app.viewContent")}>
             {renderView(activeView)}
           </section>
         </main>

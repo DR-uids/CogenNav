@@ -8,6 +8,7 @@ import { stateLabel } from "../components/JobProgress";
 import { LanguageBar } from "../components/tree/LanguageBar";
 import { DirTree } from "../components/tree/DirTree";
 import { Treemap } from "../components/tree/Treemap";
+import { useT } from "../i18n";
 import { readDeepLinkParam, writeDeepLink } from "../lib/deepLink";
 import { useReindexRepo } from "../lib/reindex";
 import { layoutTreemap } from "../lib/treemap";
@@ -31,6 +32,7 @@ import { useUi } from "../stores/ui";
  *  - 选中文件 → 写 store 并切到 CST 视图（跨视图联动的既有做法）。
  */
 export function DirTreeView() {
+  const t = useT();
   const repoId = useUi((s) => s.repoId);
   const selectedFile = useUi((s) => s.selectedFile);
   const selectFile = useUi((s) => s.selectFile);
@@ -126,7 +128,8 @@ export function DirTreeView() {
   }, [repoId]);
 
   const files = useMemo(() => (root ? collectFiles(root) : []), [root]);
-  const summary = useMemo(() => languageSummary(files), [files]);
+  // t 进依赖：未知语言的兜底名（「其它」/ Other）也要在切语言后重算。
+  const summary = useMemo(() => languageSummary(files), [files, t]);
   const rects = useMemo(() => (root ? layoutTreemap(root) : []), [root]);
 
   /** 展开目录；被 depth 截断的目录顺带懒加载一层。 */
@@ -168,7 +171,7 @@ export function DirTreeView() {
   const errorMessage =
     rootQuery.error instanceof Error
       ? rootQuery.error.message
-      : "后端未返回目录树数据（node 缺失）。";
+      : t("dirTree.missingNode");
   // 等索引/等列表的提示只在还没有可展示的树时出现：重新索引时保留上一次已加载的树。
   const waiting = Boolean(repoId) && !root && (indexing || notReady);
 
@@ -182,11 +185,14 @@ export function DirTreeView() {
           className="flex w-80 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/20"
         >
           <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-zinc-800 px-3">
-            <h3 className="text-xs font-medium text-zinc-400">目录</h3>
+            <h3 className="text-xs font-medium text-zinc-400">{t("dirTree.title")}</h3>
             <span className="flex shrink-0 items-center gap-2 text-[10px] text-zinc-600">
               {rootQuery.data && (
                 <span data-testid="dir-tree-total">
-                  共 {rootQuery.data.totalFiles} 文件 / {rootQuery.data.totalLoc} 行
+                  {t("dirTree.total", {
+                    files: t("unit.files", { count: rootQuery.data.totalFiles }),
+                    loc: t("unit.lines", { count: rootQuery.data.totalLoc }),
+                  })}
                 </span>
               )}
               <button
@@ -195,14 +201,14 @@ export function DirTreeView() {
                 onClick={() => setExpanded(new Set([""]))}
                 className="rounded border border-zinc-800 px-1.5 py-0.5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
               >
-                只看一层
+                {t("dirTree.oneLevel")}
               </button>
             </span>
           </div>
 
           {!repoId && (
             <p data-testid="dir-tree-no-repo" className="m-3 text-[11px] leading-relaxed text-zinc-500">
-              请先在左侧「仓库」列表中选择一个仓库，这里会显示它的目录结构与 Treemap。
+              {t("dirTree.pickRepo")}
             </p>
           )}
 
@@ -211,21 +217,20 @@ export function DirTreeView() {
               data-testid="dir-tree-indexing"
               className="m-3 rounded border border-sky-900/60 bg-sky-950/30 p-2 text-[11px] leading-relaxed text-sky-300"
             >
-              该仓库{stateLabel(repoState ?? "running")}
-              ，目录树要等索引完成后才能读；完成后会自动加载。
+              {t("dirTree.indexing", { state: stateLabel(repoState ?? "running") })}
             </p>
           )}
 
           {loading && (
             <p data-testid="dir-tree-loading" className="m-3 text-[11px] text-zinc-500">
-              正在加载目录树…
+              {t("dirTree.loading")}
             </p>
           )}
 
           {failed && (
             <div className="m-3 rounded border border-rose-900/60 bg-rose-950/30 p-2">
               <p data-testid="dir-tree-error" className="text-[11px] break-all text-rose-300">
-                目录树加载失败：{errorMessage}
+                {t("dirTree.loadFailed", { error: errorMessage })}
               </p>
               {repoSummary && (
                 <button
@@ -237,12 +242,12 @@ export function DirTreeView() {
                   }
                   className="mt-2 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[11px] text-zinc-100 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {reindex.isPending ? "提交中…" : "重新索引"}
+                  {reindex.isPending ? t("repoInput.submitting") : t("repoList.reindex")}
                 </button>
               )}
               {reindex.error && (
                 <p data-testid="dir-tree-reindex-error" className="mt-1.5 text-[11px] break-all text-rose-300">
-                  {reindex.error instanceof Error ? reindex.error.message : "重新索引失败"}
+                  {reindex.error instanceof Error ? reindex.error.message : t("repoList.reindexFailed")}
                 </p>
               )}
             </div>
@@ -263,17 +268,15 @@ export function DirTreeView() {
 
         <section data-testid="treemap-panel" className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-10 shrink-0 items-center gap-2 overflow-hidden border-b border-zinc-800 px-3">
-            <h3 className="shrink-0 text-xs font-medium text-zinc-400">Treemap</h3>
-            <span className="truncate text-[10px] text-zinc-600">
-              面积 = LOC，颜色 = 语言；点矩形打开文件，点目录选中目录。
-            </span>
+            <h3 className="shrink-0 text-xs font-medium text-zinc-400">{t("dirTree.treemapTitle")}</h3>
+            <span className="truncate text-[10px] text-zinc-600">{t("dirTree.treemapHint")}</span>
             {selectedDir !== null && (
               <span
                 data-testid="treemap-selected-dir"
                 className="ml-auto shrink-0 truncate font-mono text-[10px] text-amber-300"
                 title={selectedDir || "/"}
               >
-                选中目录：{selectedDir || "/"}
+                {t("dirTree.selectedDir", { path: selectedDir || "/" })}
               </span>
             )}
           </div>

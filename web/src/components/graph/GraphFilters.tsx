@@ -1,4 +1,5 @@
 import type { Community } from "../../api/client";
+import { useT } from "../../i18n";
 import { isChecked } from "../../lib/graphFilters";
 import { communityColor } from "../../lib/graphColors";
 
@@ -23,11 +24,15 @@ function OptionGroup({
   disabledValue,
   hint,
 }: OptionGroupProps) {
+  const t = useT();
+
   return (
     <fieldset className="border-t border-zinc-800 px-3 py-2">
       <legend className="text-[10px] tracking-wide text-zinc-500 uppercase">{title}</legend>
       <div className="mt-1 flex flex-col gap-1">
-        {options.length === 0 && <span className="text-[10px] text-zinc-600">暂无数据</span>}
+        {options.length === 0 && (
+          <span className="text-[10px] text-zinc-600">{t("filter.noData")}</span>
+        )}
         {options.map((option) => {
           const checked = isChecked(selected, option);
           const disabled = option === disabledValue;
@@ -102,20 +107,22 @@ export function GraphFilters({
   edgeCount,
   notice,
 }: GraphFiltersProps) {
+  const t = useT();
+
   return (
     <section
       data-testid="graph-filters"
       className="flex w-60 shrink-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-900/20"
     >
       <div className="flex h-10 shrink-0 items-center justify-between px-3">
-        <h3 className="text-xs font-medium text-zinc-400">过滤</h3>
+        <h3 className="text-xs font-medium text-zinc-400">{t("filter.title")}</h3>
         <button
           type="button"
           data-testid="filter-reset"
           onClick={onReset}
           className="rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
         >
-          重置
+          {t("filter.reset")}
         </button>
       </div>
 
@@ -129,31 +136,31 @@ export function GraphFilters({
       )}
 
       <div className="px-3 pb-2 text-[10px] text-zinc-600">
-        <span data-testid="graph-count">节点 {nodeCount}</span>
+        <span data-testid="graph-count">{t("filter.nodes", { count: nodeCount })}</span>
         <span className="mx-1">/</span>
-        <span data-testid="graph-edge-count">边 {edgeCount}</span>
+        <span data-testid="graph-edge-count">{t("filter.edges", { count: edgeCount })}</span>
       </div>
 
       <OptionGroup
-        title="节点类型"
+        title={t("filter.kind")}
         testId="filter-kind"
         options={availableKinds}
         selected={kinds}
         onToggle={onToggleKind}
-        hint="全部勾选 = 不过滤类型"
+        hint={t("filter.kindHint")}
       />
 
       <OptionGroup
-        title="关系"
+        title={t("filter.relation")}
         testId="filter-relation"
         options={availableRelations}
         selected={relations}
         onToggle={onToggleRelation}
-        hint="全部勾选 = 不过滤关系"
+        hint={t("filter.relationHint")}
       />
 
       <OptionGroup
-        title="置信度"
+        title={t("filter.confidence")}
         testId="filter-confidence"
         options={["extracted", "inferred", "ambiguous"]}
         selected={confidence}
@@ -170,15 +177,17 @@ export function GraphFilters({
             onChange={(event) => onHideAmbiguousChange(event.target.checked)}
             className="h-3 w-3 accent-sky-500"
           />
-          隐藏 AMBIGUOUS
+          {t("filter.hideAmbiguous")}
         </label>
         <p className="mt-1 text-[10px] leading-relaxed text-zinc-600">
-          AMBIGUOUS 是启发式猜测的边，默认不进主视图。
+          {t("filter.hideAmbiguousHint")}
         </p>
       </fieldset>
 
       <fieldset className="border-t border-zinc-800 px-3 py-2">
-        <legend className="text-[10px] tracking-wide text-zinc-500 uppercase">社区</legend>
+        <legend className="text-[10px] tracking-wide text-zinc-500 uppercase">
+          {t("filter.community")}
+        </legend>
         <select
           data-testid="filter-community"
           value={community === null ? "" : String(community)}
@@ -187,10 +196,10 @@ export function GraphFilters({
           }
           className="mt-1 w-full rounded border border-zinc-800 bg-zinc-950 px-1.5 py-1 text-[11px] text-zinc-200 focus:border-zinc-600 focus:outline-none"
         >
-          <option value="">全部社区</option>
+          <option value="">{t("filter.allCommunities")}</option>
           {communities.map((item) => (
             <option key={item.id} value={String(item.id)}>
-              {item.name}（{item.size}）
+              {t("filter.communityOption", { name: item.name, size: item.size })}
             </option>
           ))}
         </select>
@@ -204,7 +213,7 @@ export function GraphFilters({
               className="h-2 w-2 rounded-full"
               style={{ background: communityColor(community) }}
             />
-            已按社区过滤
+            {t("filter.communityActive")}
           </span>
         )}
       </fieldset>

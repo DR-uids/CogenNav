@@ -116,7 +116,9 @@ Claude Code / Cursor 等支持 MCP 的客户端里加一段配置（把路径换
 - **解析进程隔离**：分进程池 + 每块墙钟超时熔断（`py-tree-sitter` 本身没有 timeout API）+ worker 环境变量白名单（剥离 LLM Key 与 git token）。
 - **单一事实源**：Web API、自然语言问答、MCP 全部复用 `cogen.graph.tools` 的只读查询函数。
 - **降级优先**：无 LLM Key → 确定性社区命名；无专用 extractor → 通用启发式；语法缺失 → 仅登记文件。
+- **中英文界面，默认英文**：所有标签、空态与报错都有中英两份；右上角切换，选择会被记住，`?lang=zh` 可把语言放进链接里分享。后端报错通过 `Accept-Language` 跟着一起切。
 - **可寻址**：前端 URL 承载状态（`/r/{repoId}?view=cst&file=...&node=0.1.2&line=12`），任意视图可分享、可前进后退。
+- **两端各一张文案表**：前端读 `web/src/i18n/messages.en.ts` / `messages.zh.ts`（少一个键 `tsc` 直接报错），后端读 `cogen/i18n.py`；请求带 `Accept-Language`，索引任务在提交时捕获语言，后台进度文案与提交者看到的一致。
 
 ## 配置
 
@@ -137,7 +139,8 @@ src/cogen/
   mcp/                       # MCP Server
   api/                       # FastAPI 路由（repos/jobs/tree/cst/graph/ai）
   export/                    # graph.json / GRAPH_REPORT.md / graph.html
-web/                         # React 单页应用
+  i18n.py                    # 后端文案表 + Accept-Language 解析
+web/                         # React 单页应用（界面文案在 web/src/i18n）
 tests/                       # 单测 + 接口测试 + fixture 仓库
 ```
 

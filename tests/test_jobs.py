@@ -27,6 +27,14 @@ class _FakeProgress:
         if kwargs.get("state"):
             self.state = str(kwargs["state"])
 
+    def say(self, key: str, **kwargs: object) -> None:
+        """流水线用「文案键 + 参数」上报进度（与 jobs.Progress 同签名）。"""
+        from cogen.i18n import t
+
+        params = kwargs.pop("params", {})
+        assert isinstance(params, dict)
+        self.update(message=t(key, **params), **kwargs)
+
     def done(self, message: str | None = None) -> None:
         self.calls.append({"state": "done", "message": message})
         self.state = "done"

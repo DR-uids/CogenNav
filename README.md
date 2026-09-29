@@ -31,6 +31,7 @@ CogenNav reads your code; it never runs it.
 - **Ask the graph.** Natural-language Q&A calls the same read-only query layer as the UI and streams a tool trace, tokens and cited nodes back over SSE.
 - **Usable with AI assistants.** `cogen mcp` exposes that same read-only tool set to Claude Code, Cursor and other MCP clients — 13 tools and 3 resources, with **no execution or file-write entry point**.
 - **Degrades by default.** No LLM key → deterministic community naming. No dedicated extractor → generic heuristics. Missing grammar → the file is still registered.
+- **Bilingual UI, English by default.** Every label, empty state and error message ships in English and Chinese. The switch sits in the top bar, the choice survives a reload, and `?lang=zh` puts the language in the URL so a link can carry it. API errors follow the same choice through `Accept-Language`.
 
 ## Measured results
 
@@ -115,6 +116,7 @@ Use the official Inspector while debugging: `npx @modelcontextprotocol/inspector
 - **One source of truth.** The web API, natural-language Q&A and MCP all reuse the read-only query functions in `cogen.graph.tools`.
 - **Degrade rather than fail.** No LLM key → deterministic community naming; no dedicated extractor → generic heuristics; no grammar → the file is only registered.
 - **Addressable state.** View state lives in the URL (`/r/{repoId}?view=cst&file=...&node=0.1.2&line=12`), so any view can be shared, bookmarked and navigated with the browser's back button.
+- **One message catalog per side.** The UI reads `web/src/i18n/messages.en.ts` / `messages.zh.ts` (a missing key is a `tsc` error), the backend reads `cogen/i18n.py`; requests carry `Accept-Language`, and an indexing job captures the language at submit time so its background progress messages match the person who started it.
 
 ## Configuration
 
@@ -135,7 +137,8 @@ src/cogen/
   mcp/                       # MCP server
   api/                       # FastAPI routes (repos/jobs/tree/cst/graph/ai)
   export/                    # graph.json / GRAPH_REPORT.md / graph.html
-web/                         # React single-page app
+  i18n.py                    # message catalog + Accept-Language resolution
+web/                         # React single-page app (UI copy in web/src/i18n)
 tests/                       # unit tests + API tests + fixture repositories
 ```
 

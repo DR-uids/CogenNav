@@ -1,4 +1,5 @@
 import type { GraphNode } from "../../api/client";
+import { useT } from "../../i18n";
 
 type ImpactPanelProps = {
   root: GraphNode | null;
@@ -21,35 +22,36 @@ export function ImpactPanel({
   truncated,
   onOpenFile,
 }: ImpactPanelProps) {
+  const t = useT();
   const ordered = [...files].sort((a, b) => b.count - a.count);
 
   return (
     <section data-testid="impact-panel" className="flex min-h-0 flex-col border-t border-zinc-800">
       <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-        <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">需回归的文件</h3>
+        <h3 className="text-[10px] tracking-wide text-zinc-500 uppercase">{t("impact.title")}</h3>
         <span data-testid="impact-file-count" className="text-[10px] text-zinc-600">
-          {ordered.length} 个
+          {t("impact.fileCount", { count: ordered.length })}
         </span>
         <span data-testid="impact-node-count" className="ml-auto text-[10px] text-zinc-600">
-          受影响符号 {nodeCount}
+          {t("impact.nodeCount", { count: nodeCount })}
         </span>
       </div>
 
       {root && (
         <p className="shrink-0 px-3 pb-1 text-[10px] text-zinc-500">
-          根符号：<span data-testid="impact-root" className="font-mono text-zinc-300">{root.name}</span>
+          {t("impact.root", { name: root.name })}
         </p>
       )}
 
       {truncated && (
         <p data-testid="impact-truncated" className="shrink-0 px-3 pb-1 text-[10px] text-amber-400">
-          闭包过大已被截断，下面的清单不是全部。
+          {t("impact.truncated")}
         </p>
       )}
 
       {ordered.length === 0 ? (
         <p data-testid="impact-empty" className="px-3 pb-2 text-[10px] leading-relaxed text-zinc-600">
-          没有下游依赖：改这个符号不需要回归其它文件。
+          {t("impact.empty")}
         </p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-auto px-2 pb-2">
@@ -61,7 +63,7 @@ export function ImpactPanel({
                 data-path={file.path}
                 data-count={file.count}
                 onClick={() => onOpenFile(file.path)}
-                title={`${file.path}（命中 ${file.count} 个符号）`}
+                title={t("impact.fileTitle", { path: file.path, count: file.count })}
                 className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-zinc-800"
               >
                 <span className="truncate font-mono text-[10px] text-zinc-300">{file.path}</span>
