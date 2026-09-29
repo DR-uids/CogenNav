@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cogen"
+version = "0.1.0"
+description = "CogenNav — 代码仓库 CST 解析与知识图谱导航引擎"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    # CST 解析（核心层：自带语法，无运行时下载）
+    "tree-sitter>=0.26,<0.27",
+    "tree-sitter-python>=0.25,<0.26",
+    "tree-sitter-javascript>=0.25,<0.26",
+    "tree-sitter-typescript>=0.23.2,<0.24",
+    "tree-sitter-go>=0.25,<0.26",
+    "tree-sitter-java>=0.23.5,<0.24",
+    "tree-sitter-rust>=0.24.2,<0.25",
+    "tree-sitter-c>=0.24.2,<0.25",
+    "tree-sitter-cpp>=0.23.4,<0.24",
+    "tree-sitter-c-sharp>=0.23.5,<0.24",
+    "tree-sitter-ruby>=0.23.1,<0.24",
+    "tree-sitter-php>=0.24.1,<0.25",
+    "tree-sitter-kotlin>=1.1,<2",
+    "tree-sitter-swift>=0.7.3,<0.8",
+    "tree-sitter-bash>=0.25.1,<0.26",
+    "tree-sitter-json>=0.24.8,<0.25",
+    "tree-sitter-yaml>=0.7.2,<0.8",
+    "tree-sitter-html>=0.23.2,<0.24",
+    "tree-sitter-css>=0.25,<0.26",
+    # 服务
+    "fastapi>=0.141,<0.142",
+    "uvicorn[standard]>=0.54,<0.55",
+    "sse-starlette>=3.5,<4",
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.15,<3",
+    # 分析与 IO
+    "networkx>=3.2,<3.5",
+    "pathspec>=1.1,<2",
+    "orjson>=3.12,<4",
+    "httpx>=0.28,<0.29",
+    "click>=8.5,<9",
+    # AI / MCP
+    "mcp>=2.2,<3",
+    "openai>=3.20,<4",
+]
+
+[project.optional-dependencies]
+# 扩展语言层（371 门语言，运行时按需下载原生解析器；默认关闭）
+xlang = ["tree-sitter-language-pack>=1.20,<2"]
+dev = [
+    "pytest>=9,<10",
+    "pytest-asyncio>=1.4,<2",
+    "pytest-cov>=7,<8",
+    "ruff>=0.16,<0.17",
+    "mypy>=2.3,<3",
+]
+
+[project.scripts]
+cogen = "cogen.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cogen"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "network: 需要网络（真实 git clone / LLM 调用），默认不跑",
+]
+addopts = "-q -m 'not network'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+# RUF001/2/3 会把中文全角标点误判为「歧义字符」；本项目约定注释与文案使用中文标点。
+ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/cogen"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true

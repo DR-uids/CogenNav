@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 工作区内的缓存与工具目录（沙箱要求：不许写工作区外）
+.cache/
+.pnpm-home/
+.pnpm-store/
+node_modules/
+
+# CogenNav 运行期数据
+.cogen/
+
+# 前端
+web/dist/
+web/node_modules/
+web/.vite/
+
+# 本地配置
+.env
+
+# macOS
+.DS_Store
